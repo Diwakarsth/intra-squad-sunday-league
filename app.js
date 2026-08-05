@@ -267,8 +267,8 @@ const seed = {
     "date": "08/09/2026",
     "time": "8:30 AM",
     "venue": "De Anza High School",
-    "homeScore": null,
-    "awayScore": null
+    "homeScore": 2,
+    "awayScore": 1
   },
   {
     "id": "M2",

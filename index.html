@@ -69,6 +69,8 @@
     .icon-btn{border:0;background:#eef2f7;border-radius:10px;width:36px;height:36px;font-size:20px;cursor:pointer}
     .error{display:none;color:var(--danger);background:#fff1f1;border-radius:10px;padding:9px 11px;font-size:13px}
     .admin-status{font-size:12px;opacity:.9;margin-top:7px}
+    .connection-status{font-size:11px;opacity:.82;margin-top:4px}
+    .connection-error{color:#ffd2d2;font-weight:800}
     .team-card{overflow:hidden;padding:0}
     .team-banner{height:8px;background:var(--team-color)}
     .team-head{display:flex;gap:14px;align-items:center;padding:16px}
@@ -110,7 +112,7 @@
 <div class="app">
   <header>
     <div class="header-row">
-      <div><h1>Intra Squad Sunday League</h1><p>One group. Three teams. One champion.</p><div id="adminStatus" class="admin-status"></div></div>
+      <div><h1>Intra Squad Sunday League</h1><p>One group. Three teams. One champion.</p><div id="adminStatus" class="admin-status"></div><div id="connectionStatus" class="connection-status">Connecting to live league data…</div></div>
       <button id="authBtn" class="login-btn" type="button">Admin Login</button>
     </div>
   </header>
@@ -236,14 +238,14 @@
     </section>
   </main>
 
-  <footer>Intra Squad Sunday League v3.0 • Live Firebase synchronization</footer>
+  <footer>Intra Squad Sunday League v3.0 • Live shared data powered by Firebase</footer>
 </div>
 
 <div id="loginModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <div class="modal">
     <div class="modal-head"><h2 id="loginTitle">Admin Login</h2><button id="closeLogin" class="icon-btn" type="button" aria-label="Close">×</button></div>
     <form id="loginForm">
-      <label>Admin email<input id="adminUsername" type="email" autocomplete="username" placeholder="admin@intrasquadleague.com" required></label>
+      <label>Email<input id="adminEmail" type="email" autocomplete="username" placeholder="admin@intrasquadleague.com" required></label>
       <label>Password<input id="adminPassword" type="password" autocomplete="current-password" required></label>
       <div id="loginError" class="error">Incorrect email or password.</div>
       <button class="btn" type="submit">Log In</button>
@@ -251,9 +253,6 @@
   </div>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-<script src="app.js"></script>
+<script type="module" src="app.js"></script>
 </body>
 </html>

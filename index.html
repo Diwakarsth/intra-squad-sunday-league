@@ -236,21 +236,24 @@
     </section>
   </main>
 
-  <footer>Intra Squad Sunday League v2.0 • Data saves on this device</footer>
+  <footer>Intra Squad Sunday League v3.0 • Live Firebase synchronization</footer>
 </div>
 
 <div id="loginModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <div class="modal">
     <div class="modal-head"><h2 id="loginTitle">Admin Login</h2><button id="closeLogin" class="icon-btn" type="button" aria-label="Close">×</button></div>
     <form id="loginForm">
-      <label>Username<input id="adminUsername" autocomplete="username" required></label>
+      <label>Admin email<input id="adminUsername" type="email" autocomplete="username" placeholder="admin@intrasquadleague.com" required></label>
       <label>Password<input id="adminPassword" type="password" autocomplete="current-password" required></label>
-      <div id="loginError" class="error">Incorrect username or password.</div>
+      <div id="loginError" class="error">Incorrect email or password.</div>
       <button class="btn" type="submit">Log In</button>
     </form>
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

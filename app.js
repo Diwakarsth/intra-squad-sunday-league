@@ -1,5 +1,16 @@
-const ADMIN_CREDENTIALS = { username: "admin", password: "SundayLeague2026!" };
-let isAdmin = sessionStorage.getItem("sisl-admin") === "true";
+const firebaseConfig = {
+  apiKey: "AIzaSyAh6B75N8AK1TmIXUz1thxzoKxToeztf08",
+  authDomain: "intra-squad-sunday-league.firebaseapp.com",
+  projectId: "intra-squad-sunday-league",
+  storageBucket: "intra-squad-sunday-league.firebasestorage.app",
+  messagingSenderId: "390341357300",
+  appId: "1:390341357300:web:22443b7f9fba6c7af838a1"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const leagueRef = db.collection("league").doc("state");
+let isAdmin = false;
 
 const TEAM_MEDIA = {
   T1: {logo: "No Stamina Hustlers Logo.png", jersey: "No Stamina Hustlers Jersey.png"},
@@ -340,8 +351,26 @@ const seed = {
   events: []
 };
 
-let data = JSON.parse(localStorage.getItem("sisl-data") || "null") || structuredClone(seed);
-const save = () => localStorage.setItem("sisl-data", JSON.stringify(data));
+let data = structuredClone(seed);
+let cloudReady = false;
+const save = async () => {
+  if (!isAdmin) throw new Error("Admin login required.");
+  await leagueRef.set(data);
+};
+
+leagueRef.onSnapshot(snapshot => {
+  cloudReady = true;
+  if (snapshot.exists) {
+    data = snapshot.data();
+    render();
+  } else {
+    render();
+  }
+  document.querySelector("#adminStatus").textContent = isAdmin ? "Admin mode active • Live sync connected" : "Live data connected";
+}, error => {
+  console.error("Firestore connection error:", error);
+  document.querySelector("#adminStatus").textContent = "Unable to connect to live data";
+});
 const team = id => data.teams.find(t=>t.id===id);
 const teamName = id => team(id)?.name || (id==="FINAL1"?"1st Place":id==="FINAL2"?"2nd Place":"TBD");
 const teamLogo = id => TEAM_MEDIA[id]?.logo || "";
@@ -353,7 +382,7 @@ function updateAuthUI(){
   const status=document.querySelector("#adminStatus");
   adminTab.classList.toggle("admin-hidden",!isAdmin);
   authBtn.textContent=isAdmin?"Admin Logout":"Admin Login";
-  status.textContent=isAdmin?"Admin mode active":"";
+  status.textContent=isAdmin?"Admin mode active • Live sync connected":(cloudReady?"Live data connected":"Connecting to live data…");
   if(!isAdmin && document.querySelector("#admin").classList.contains("active")) activateTab("home");
 }
 function activateTab(tabId){
@@ -461,44 +490,67 @@ document.querySelector("#tabs").addEventListener("click",e=>{
   if(e.target.dataset.tab==="admin"&&!isAdmin){openLogin();return;}
   activateTab(e.target.dataset.tab);
 });
-document.querySelector("#resultForm").addEventListener("submit",e=>{
-  e.preventDefault(); if(!isAdmin)return openLogin(); const f=data.fixtures.find(x=>x.id===document.querySelector("#resultMatch").value);
-  f.homeScore=Number(document.querySelector("#homeScore").value); f.awayScore=Number(document.querySelector("#awayScore").value);
-  save(); flash(); render(); e.target.reset();
-});
-document.querySelector("#playerForm").addEventListener("submit",e=>{
+document.querySelector("#resultForm").addEventListener("submit",async e=>{
   e.preventDefault(); if(!isAdmin)return openLogin();
-  data.players.push({id:"P"+Date.now(),name:document.querySelector("#playerName").value.trim(),teamId:document.querySelector("#playerTeam").value,
-    position:document.querySelector("#playerPosition").value.trim(),number:document.querySelector("#playerNumber").value});
-  save(); flash(); render(); e.target.reset();
+  try {
+    const f=data.fixtures.find(x=>x.id===document.querySelector("#resultMatch").value);
+    f.homeScore=Number(document.querySelector("#homeScore").value); f.awayScore=Number(document.querySelector("#awayScore").value);
+    await save(); flash(); e.target.reset();
+  } catch(err){ alert("Could not save result: "+err.message); }
 });
-document.querySelector("#eventForm").addEventListener("submit",e=>{
+document.querySelector("#playerForm").addEventListener("submit",async e=>{
+  e.preventDefault(); if(!isAdmin)return openLogin();
+  try {
+    data.players.push({id:"P"+Date.now(),name:document.querySelector("#playerName").value.trim(),teamId:document.querySelector("#playerTeam").value,
+      position:document.querySelector("#playerPosition").value.trim(),number:document.querySelector("#playerNumber").value,captain:false,photo:""});
+    await save(); flash(); e.target.reset();
+  } catch(err){ alert("Could not add player: "+err.message); }
+});
+document.querySelector("#eventForm").addEventListener("submit",async e=>{
   e.preventDefault(); if(!isAdmin)return openLogin();
   if(!document.querySelector("#eventPlayer").value)return alert("Add a player first.");
-  data.events.push({id:"E"+Date.now(),matchId:document.querySelector("#eventMatch").value,playerId:document.querySelector("#eventPlayer").value,
-    type:document.querySelector("#eventType").value,minute:Number(document.querySelector("#eventMinute").value||0)});
-  save(); flash(); render(); e.target.reset();
+  try {
+    data.events.push({id:"E"+Date.now(),matchId:document.querySelector("#eventMatch").value,playerId:document.querySelector("#eventPlayer").value,
+      type:document.querySelector("#eventType").value,minute:Number(document.querySelector("#eventMinute").value||0)});
+    await save(); flash(); e.target.reset();
+  } catch(err){ alert("Could not add event: "+err.message); }
 });
-document.querySelector("#resetBtn").addEventListener("click",()=>{
+document.querySelector("#resetBtn").addEventListener("click",async()=>{
   if(!isAdmin)return openLogin();
-  if(confirm("Reset all locally saved league data?")){data=structuredClone(seed);save();render();}
+  if(confirm("Reset all live league data?")){
+    try { data=structuredClone(seed); await save(); flash(); }
+    catch(err){ alert("Could not reset data: "+err.message); }
+  }
 });
 function flash(){const n=document.querySelector("#notice");n.style.display="block";setTimeout(()=>n.style.display="none",1800)}
 function openLogin(){document.querySelector("#loginError").style.display="none";document.querySelector("#loginModal").classList.add("open");setTimeout(()=>document.querySelector("#adminUsername").focus(),50)}
 function closeLogin(){document.querySelector("#loginModal").classList.remove("open");document.querySelector("#loginForm").reset()}
-document.querySelector("#authBtn").addEventListener("click",()=>{
-  if(isAdmin){isAdmin=false;sessionStorage.removeItem("sisl-admin");updateAuthUI();activateTab("home");}
+document.querySelector("#authBtn").addEventListener("click",async()=>{
+  if(isAdmin){await auth.signOut();activateTab("home");}
   else openLogin();
 });
 document.querySelector("#closeLogin").addEventListener("click",closeLogin);
 document.querySelector("#loginModal").addEventListener("click",e=>{if(e.target.id==="loginModal")closeLogin()});
-document.querySelector("#loginForm").addEventListener("submit",e=>{
+document.querySelector("#loginForm").addEventListener("submit",async e=>{
   e.preventDefault();
-  const username=document.querySelector("#adminUsername").value.trim();
+  const email=document.querySelector("#adminUsername").value.trim();
   const password=document.querySelector("#adminPassword").value;
-  if(username===ADMIN_CREDENTIALS.username&&password===ADMIN_CREDENTIALS.password){
-    isAdmin=true;sessionStorage.setItem("sisl-admin","true");closeLogin();updateAuthUI();activateTab("admin");
-  }else document.querySelector("#loginError").style.display="block";
+  try {
+    await auth.signInWithEmailAndPassword(email,password);
+    closeLogin(); activateTab("admin");
+  } catch(err) {
+    console.error(err);
+    document.querySelector("#loginError").textContent="Incorrect email or password.";
+    document.querySelector("#loginError").style.display="block";
+  }
+});
+auth.onAuthStateChanged(async user=>{
+  isAdmin=!!user;
+  updateAuthUI();
+  if(user){
+    const snap=await leagueRef.get();
+    if(!snap.exists) await leagueRef.set(structuredClone(seed));
+  }
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeLogin()});
 if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");

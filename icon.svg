@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<rect width="512" height="512" rx="110" fill="#0b2a5b"/>
+<path d="M256 72 402 128v116c0 92-59 160-146 196-87-36-146-104-146-196V128z" fill="#155bd7" stroke="#fff" stroke-width="18"/>
+<circle cx="256" cy="248" r="76" fill="#fff"/>
+<path d="m256 190 36 26-14 42h-44l-14-42zM180 250l42-6 20 38-30 34-40-22zM332 250l-42-6-20 38 30 34 40-22z" fill="#0b2a5b"/>
+<text x="256" y="145" text-anchor="middle" font-family="Arial" font-size="44" font-weight="700" fill="#fff">SISL</text>
+</svg>

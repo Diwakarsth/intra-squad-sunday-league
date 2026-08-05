@@ -1,11 +1,3 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import {
-  getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import {
-  getFirestore, doc, getDoc, setDoc, onSnapshot, enableIndexedDbPersistence
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-
 const firebaseConfig = {
   apiKey: "AIzaSyAh6B75N8AK1TmIXUz1thxzoKxToeztf08",
   authDomain: "intra-squad-sunday-league.firebaseapp.com",
@@ -15,16 +7,13 @@ const firebaseConfig = {
   appId: "1:390341357300:web:22443b7f9fba6c7af838a1"
 };
 
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const leagueRef = db.collection("league").doc("current");
 const ADMIN_EMAIL = "admin@intrasquadleague.com";
-const firebaseApp = initializeApp(firebaseConfig);
-const auth = getAuth(firebaseApp);
-const db = getFirestore(firebaseApp);
-const leagueRef = doc(db, "league", "current");
-
-enableIndexedDbPersistence(db).catch(() => { /* Another tab or unsupported browser. */ });
-
 let isAdmin = false;
-let dataLoadedFromCloud = false;
+let cloudReady = false;
 let unsubscribeLeague = null;
 
 const TEAM_MEDIA = {
@@ -367,140 +356,230 @@ const seed = {
 };
 
 let data = structuredClone(seed);
+
+async function save(){
+  if(!isAdmin) throw new Error("Admin login required.");
+  await leagueRef.set({ ...data, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+}
+
+function setStatus(message){
+  document.querySelector("#adminStatus").textContent = message;
+}
+
+function startLiveData(){
+  if(unsubscribeLeague) unsubscribeLeague();
+  unsubscribeLeague = leagueRef.onSnapshot(async snapshot => {
+    cloudReady = true;
+    if(snapshot.exists){
+      const remote = snapshot.data();
+      data = {
+        teams: Array.isArray(remote.teams) ? remote.teams : structuredClone(seed.teams),
+        players: Array.isArray(remote.players) ? remote.players : structuredClone(seed.players),
+        fixtures: Array.isArray(remote.fixtures) ? remote.fixtures : structuredClone(seed.fixtures),
+        events: Array.isArray(remote.events) ? remote.events : []
+      };
+      setStatus(isAdmin ? "Admin connected • Live data synced" : "Live public data connected");
+      render();
+    } else {
+      data = structuredClone(seed);
+      setStatus(isAdmin ? "Admin connected • Initializing live data…" : "Live database ready • Waiting for admin initialization");
+      render();
+      if(isAdmin){
+        await leagueRef.set({ ...data, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      }
+    }
+  }, error => {
+    console.error("Firestore listener error", error);
+    cloudReady = false;
+    setStatus("Unable to connect to live data");
+  });
+}
 const team = id => data.teams.find(t=>t.id===id);
 const teamName = id => team(id)?.name || (id==="FINAL1"?"1st Place":id==="FINAL2"?"2nd Place":"TBD");
 const teamLogo = id => TEAM_MEDIA[id]?.logo || "";
 const logoHtml = (id, alt="") => teamLogo(id) ? `<img class="mini-team-logo" src="${encodeURI(teamLogo(id))}" alt="${alt || teamName(id)} logo">` : "";
 
-function setConnectionStatus(message, isError=false) {
-  const el=document.querySelector("#connectionStatus");
-  if(!el) return;
-  el.textContent=message;
-  el.classList.toggle("connection-error",isError);
-}
-
-function normalizeData(value) {
-  return {
-    teams: Array.isArray(value?.teams) ? value.teams : structuredClone(seed.teams),
-    players: Array.isArray(value?.players) ? value.players : structuredClone(seed.players),
-    fixtures: Array.isArray(value?.fixtures) ? value.fixtures : structuredClone(seed.fixtures),
-    events: Array.isArray(value?.events) ? value.events : []
-  };
-}
-
-async function ensureLeagueDocument() {
-  const snap=await getDoc(leagueRef);
-  if(!snap.exists()) {
-    await setDoc(leagueRef, {...structuredClone(seed), updatedAt: new Date().toISOString(), updatedBy: auth.currentUser?.email || ADMIN_EMAIL});
-  }
-}
-
-async function saveCloud(message="Saved and shared with all users.") {
-  if(!isAdmin || !auth.currentUser) throw new Error("Admin login required.");
-  await setDoc(leagueRef, {...data, updatedAt:new Date().toISOString(), updatedBy:auth.currentUser.email}, {merge:false});
-  flash(message);
-}
-
-function startLeagueListener() {
-  if(unsubscribeLeague) unsubscribeLeague();
-  setConnectionStatus("Connecting to live league data…");
-  unsubscribeLeague=onSnapshot(leagueRef, snap=>{
-    if(snap.exists()) {
-      data=normalizeData(snap.data());
-      dataLoadedFromCloud=true;
-      setConnectionStatus("Live data connected");
-    } else {
-      data=structuredClone(seed);
-      dataLoadedFromCloud=false;
-      setConnectionStatus(isAdmin ? "League database is being initialized…" : "Waiting for admin to initialize live data");
-      if(isAdmin) ensureLeagueDocument().catch(handleError);
-    }
-    render();
-  }, error=>{
-    console.error(error);
-    setConnectionStatus("Unable to load live data. Check Firebase rules and connection.",true);
-    render();
-  });
-}
-
-function updateAuthUI() {
+function updateAuthUI(){
   const adminTab=document.querySelector("#adminTab");
   const authBtn=document.querySelector("#authBtn");
   const status=document.querySelector("#adminStatus");
   adminTab.classList.toggle("admin-hidden",!isAdmin);
   authBtn.textContent=isAdmin?"Admin Logout":"Admin Login";
-  status.textContent=isAdmin?`Signed in as ${auth.currentUser?.email || "admin"}`:"";
+  if(cloudReady) status.textContent=isAdmin?"Admin connected • Live data synced":"Live public data connected";
   if(!isAdmin && document.querySelector("#admin").classList.contains("active")) activateTab("home");
 }
-function activateTab(tabId) {
+function activateTab(tabId){
   document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b.dataset.tab===tabId));
   document.querySelectorAll("main section").forEach(sec=>sec.classList.toggle("active",sec.id===tabId));
 }
 
-function standings() {
+
+function standings(){
   const s = Object.fromEntries(data.teams.map(t=>[t.id,{team:t,p:0,w:0,d:0,l:0,gf:0,ga:0,gd:0,pts:0}]));
   data.fixtures.filter(f=>f.id!=="F1" && Number.isInteger(f.homeScore) && Number.isInteger(f.awayScore)).forEach(f=>{
-    const h=s[f.home], a=s[f.away]; if(!h||!a)return; h.p++;a.p++; h.gf+=f.homeScore;h.ga+=f.awayScore; a.gf+=f.awayScore;a.ga+=f.homeScore;
+    const h=s[f.home], a=s[f.away]; h.p++;a.p++; h.gf+=f.homeScore;h.ga+=f.awayScore; a.gf+=f.awayScore;a.ga+=f.homeScore;
     if(f.homeScore>f.awayScore){h.w++;a.l++;h.pts+=3}
     else if(f.homeScore<f.awayScore){a.w++;h.l++;a.pts+=3}
     else{h.d++;a.d++;h.pts++;a.pts++}
   });
   return Object.values(s).map(x=>({...x,gd:x.gf-x.ga})).sort((a,b)=>b.pts-a.pts||b.gd-a.gd||b.gf-a.gf||a.team.name.localeCompare(b.team.name));
 }
-function statsFor(playerId) {
+function statsFor(playerId){
   const e=data.events.filter(x=>x.playerId===playerId);
-  return {goals:e.filter(x=>x.type==="Goal").length,assists:e.filter(x=>x.type==="Assist").length,yellow:e.filter(x=>x.type==="Yellow Card").length,red:e.filter(x=>x.type==="Red Card").length,potm:e.filter(x=>x.type==="Player of the Match").length};
+  return {
+    goals:e.filter(x=>x.type==="Goal").length,
+    assists:e.filter(x=>x.type==="Assist").length,
+    yellow:e.filter(x=>x.type==="Yellow Card").length,
+    red:e.filter(x=>x.type==="Red Card").length,
+    potm:e.filter(x=>x.type==="Player of the Match").length
+  }
 }
-function render() {
+function render(){
   const st=standings();
   const played=data.fixtures.filter(f=>Number.isInteger(f.homeScore)&&Number.isInteger(f.awayScore));
   document.querySelector("#kpiMatches").textContent=played.length;
   document.querySelector("#kpiGoals").textContent=played.reduce((n,f)=>n+f.homeScore+f.awayScore,0);
   document.querySelector("#kpiLeader").textContent=st[0]?.team.name||"—";
+
   const latest=played.at(-1);
-  document.querySelector("#latestResult").innerHTML=latest?`<strong>${teamName(latest.home)} ${latest.homeScore}–${latest.awayScore} ${teamName(latest.away)}</strong><div class="muted">Week ${latest.week}</div>`:`No completed match yet.`;
+  document.querySelector("#latestResult").innerHTML=latest?
+    `<strong>${teamName(latest.home)} ${latest.homeScore}–${latest.awayScore} ${teamName(latest.away)}</strong><div class="muted">Week ${latest.week}</div>`:
+    `No completed match yet.`;
+
   const next=data.fixtures.find(f=>f.homeScore===null||f.awayScore===null);
-  document.querySelector("#nextFixture").innerHTML=next?`<strong>${teamName(next.home)} vs ${teamName(next.away)}</strong><div class="muted">Week ${next.week}${next.date?` • ${next.date}`:""}${next.time?` • ${next.time}`:""}${next.venue?`<br>${next.venue}`:""}</div>`:`All matches completed.`;
-  const scorers=data.players.map(p=>({...p,...statsFor(p.id)})).sort((a,b)=>b.goals-a.goals||b.assists-a.assists||a.name.localeCompare(b.name));
+  document.querySelector("#nextFixture").innerHTML=next?
+    `<strong>${teamName(next.home)} vs ${teamName(next.away)}</strong><div class="muted">Week ${next.week}${next.date?` • ${next.date}`:""}${next.time?` • ${next.time}`:""}${next.venue?`<br>${next.venue}`:""}</div>`:
+    `All matches completed.`;
+
+  const scorers=data.players.map(p=>({...p,...statsFor(p.id)})).sort((a,b)=>b.goals-a.goals||b.assists-a.assists);
   const playersWithGoals=scorers.filter(p=>p.goals>0);
-  document.querySelector("#topScorers").innerHTML=playersWithGoals.length?playersWithGoals.slice(0,5).map((p,i)=>`<div class="player-row"><span>${i+1}. <strong>${p.name}</strong><div class="muted">${teamName(p.teamId)}</div></span><span><strong>${p.goals}</strong> goal${p.goals===1?"":"s"}</span></div>`).join(""):`<div class="muted">No goals recorded yet.</div>`;
-  document.querySelector("#topScorersFull").innerHTML=playersWithGoals.length?playersWithGoals.map((p,i)=>{const rankClass=i===0?"gold":i===1?"silver":i===2?"bronze":"";return `<div class="scorer-row"><div class="scorer-rank ${rankClass}">${i+1}</div><div><strong>${p.name}</strong><div class="muted">${logoHtml(p.teamId,p.name)}${teamName(p.teamId)} • ${p.assists} assist${p.assists===1?"":"s"}</div></div><div class="goal-total">${p.goals}<small>Goals</small></div></div>`;}).join(""):`<div class="muted">No goals have been recorded. Admin can add goals from the Admin tab.</div>`;
-  document.querySelector("#fixtureList").innerHTML=data.fixtures.map(f=>{const done=Number.isInteger(f.homeScore)&&Number.isInteger(f.awayScore);return `<div class="match"><div>${logoHtml(f.home)}<strong>${teamName(f.home)}</strong><div class="muted">Week ${f.week}</div></div><div class="score">${done?`${f.homeScore}–${f.awayScore}`:"vs"}<div class="badge">${done?"Final":"Scheduled"}</div></div><div class="team-right"><strong>${teamName(f.away)}</strong>${logoHtml(f.away)}<div class="muted">${f.date||""}${f.time?` • ${f.time}`:""}${f.venue?`<br>${f.venue}`:""}</div></div></div>`;}).join("");
-  document.querySelector("#standingsBody").innerHTML=st.map((x,i)=>`<tr class="${i===0?"rank1":i===1?"rank2":i===2?"rank3":""}"><td>${i+1}</td><td>${logoHtml(x.team.id)}<strong>${x.team.name}</strong></td><td>${x.p}</td><td>${x.w}</td><td>${x.d}</td><td>${x.l}</td><td>${x.gf}</td><td>${x.ga}</td><td>${x.gd}</td><td><strong>${x.pts}</strong></td></tr>`).join("");
-  document.querySelector("#teamCards").innerHTML=data.teams.map(t=>{const ps=data.players.filter(p=>p.teamId===t.id);const media=TEAM_MEDIA[t.id]||{};const captain=ps.find(p=>p.captain);return `<article class="card team-card" style="--team-color:${t.color}"><div class="team-banner"></div><div class="team-head">${media.logo?`<img class="team-logo-img" src="${encodeURI(media.logo)}" alt="${t.name} logo">`:`<div class="logo" style="background:${t.color}">⚽</div>`}<div><h2>${t.name}</h2><div class="muted">${ps.length} registered players${captain?` • Captain: ${captain.name}`:""}</div></div></div><div class="team-media"><div class="jersey-wrap">${media.jersey?`<img class="team-jersey-img" src="${encodeURI(media.jersey)}" alt="${t.name} jersey">`:`<div class="muted">Jersey image unavailable</div>`}</div><div class="squad"><h4>Players</h4><ul class="squad-list">${ps.map(p=>`<li><strong>${p.name}</strong>${p.captain?`<span class="captain-tag">Captain</span>`:""}</li>`).join("")}</ul></div></div></article>`;}).join("");
-  document.querySelector("#playerList").innerHTML=scorers.length?scorers.map(p=>`<div class="player-row"><span><strong>${p.name}</strong><div class="muted">${teamName(p.teamId)}${p.captain?" • Captain":""}${p.position?` • ${p.position}`:""}${p.number?` • #${p.number}`:""}</div></span><span class="muted">G ${p.goals} • A ${p.assists} • YC ${p.yellow} • RC ${p.red} • POTM ${p.potm}</span></div>`).join(""):`<div class="muted">No players added yet.</div>`;
+  document.querySelector("#topScorers").innerHTML=playersWithGoals.length?playersWithGoals.slice(0,5).map((p,i)=>
+    `<div class="player-row"><span>${i+1}. <strong>${p.name}</strong><div class="muted">${teamName(p.teamId)}</div></span><span><strong>${p.goals}</strong> goal${p.goals===1?"":"s"}</span></div>`).join(""):`<div class="muted">No goals recorded yet.</div>`;
+
+  document.querySelector("#topScorersFull").innerHTML=playersWithGoals.length?playersWithGoals.map((p,i)=>{
+    const rankClass=i===0?"gold":i===1?"silver":i===2?"bronze":"";
+    return `<div class="scorer-row"><div class="scorer-rank ${rankClass}">${i+1}</div><div><strong>${p.name}</strong><div class="muted">${logoHtml(p.teamId,p.name)}${teamName(p.teamId)} • ${p.assists} assist${p.assists===1?"":"s"}</div></div><div class="goal-total">${p.goals}<small>Goals</small></div></div>`;
+  }).join(""):`<div class="muted">No goals have been recorded. Admin can add goals from the Admin tab.</div>`;
+
+  document.querySelector("#fixtureList").innerHTML=data.fixtures.map(f=>{
+    const done=Number.isInteger(f.homeScore)&&Number.isInteger(f.awayScore);
+    return `<div class="match"><div>${logoHtml(f.home)}<strong>${teamName(f.home)}</strong><div class="muted">Week ${f.week}</div></div>
+      <div class="score">${done?`${f.homeScore}–${f.awayScore}`:"vs"}<div class="badge">${done?"Final":"Scheduled"}</div></div>
+      <div class="team-right"><strong>${teamName(f.away)}</strong>${logoHtml(f.away)}<div class="muted">${f.date||""}${f.time?` • ${f.time}`:""}${f.venue?`<br>${f.venue}`:""}</div></div></div>`;
+  }).join("");
+
+  document.querySelector("#standingsBody").innerHTML=st.map((x,i)=>`<tr class="${i===0?"rank1":i===1?"rank2":i===2?"rank3":""}">
+    <td>${i+1}</td><td>${logoHtml(x.team.id)}<strong>${x.team.name}</strong></td><td>${x.p}</td><td>${x.w}</td><td>${x.d}</td><td>${x.l}</td><td>${x.gf}</td><td>${x.ga}</td><td>${x.gd}</td><td><strong>${x.pts}</strong></td></tr>`).join("");
+
+  document.querySelector("#teamCards").innerHTML=data.teams.map(t=>{
+    const ps=data.players.filter(p=>p.teamId===t.id);
+    const media=TEAM_MEDIA[t.id] || {};
+    const captain=ps.find(p=>p.captain);
+    return `<article class="card team-card" style="--team-color:${t.color}">
+      <div class="team-banner"></div>
+      <div class="team-head">
+        ${media.logo?`<img class="team-logo-img" src="${encodeURI(media.logo)}" alt="${t.name} logo">`:`<div class="logo" style="background:${t.color}">${"⚽"}</div>`}
+        <div><h2>${t.name}</h2><div class="muted">${ps.length} registered players${captain?` • Captain: ${captain.name}`:""}</div></div>
+      </div>
+      <div class="team-media">
+        <div class="jersey-wrap">${media.jersey?`<img class="team-jersey-img" src="${encodeURI(media.jersey)}" alt="${t.name} jersey">`:`<div class="muted">Jersey image unavailable</div>`}</div>
+        <div class="squad">
+          <h4>Players</h4>
+          <ul class="squad-list">${ps.map(p=>`<li><strong>${p.name}</strong>${p.captain?`<span class="captain-tag">Captain</span>`:""}</li>`).join("")}</ul>
+        </div>
+      </div>
+    </article>`;
+  }).join("");
+
+  document.querySelector("#playerList").innerHTML=scorers.length?scorers.map(p=>
+    `<div class="player-row"><span><strong>${p.name}</strong><div class="muted">${teamName(p.teamId)}${p.captain?" • Captain":""}${p.position?` • ${p.position}`:""}${p.number?` • #${p.number}`:""}</div></span>
+    <span class="muted">G ${p.goals} • A ${p.assists} • YC ${p.yellow} • RC ${p.red} • POTM ${p.potm}</span></div>`).join(""):`<div class="muted">No players added yet.</div>`;
+
   fillSelects();
 }
-function fillSelects() {
-  ["resultMatch","eventMatch"].forEach(id=>{const el=document.querySelector("#"+id), current=el.value;el.innerHTML=data.fixtures.map(f=>`<option value="${f.id}">${f.id}: ${teamName(f.home)} vs ${teamName(f.away)}</option>`).join("");if([...el.options].some(o=>o.value===current))el.value=current;});
-  document.querySelector("#playerTeam").innerHTML=data.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join("");
+function fillSelects(){
+  const openMatches=data.fixtures;
+  ["resultMatch","eventMatch"].forEach(id=>{
+    const el=document.querySelector("#"+id), current=el.value;
+    el.innerHTML=openMatches.map(f=>`<option value="${f.id}">${f.id}: ${teamName(f.home)} vs ${teamName(f.away)}</option>`).join("");
+    if([...el.options].some(o=>o.value===current))el.value=current;
+  });
+  const teamOptions=data.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join("");
+  document.querySelector("#playerTeam").innerHTML=teamOptions;
   document.querySelector("#eventPlayer").innerHTML=data.players.map(p=>`<option value="${p.id}">${p.name} — ${teamName(p.teamId)}</option>`).join("");
 }
-
-document.querySelector("#tabs").addEventListener("click",e=>{if(!e.target.dataset.tab)return;if(e.target.dataset.tab==="admin"&&!isAdmin){openLogin();return;}activateTab(e.target.dataset.tab);});
-document.querySelector("#resultForm").addEventListener("submit",async e=>{e.preventDefault();if(!isAdmin)return openLogin();try{const f=data.fixtures.find(x=>x.id===document.querySelector("#resultMatch").value);f.homeScore=Number(document.querySelector("#homeScore").value);f.awayScore=Number(document.querySelector("#awayScore").value);await saveCloud();e.target.reset();}catch(err){handleError(err);}});
-document.querySelector("#playerForm").addEventListener("submit",async e=>{e.preventDefault();if(!isAdmin)return openLogin();try{data.players.push({id:"P"+Date.now(),name:document.querySelector("#playerName").value.trim(),teamId:document.querySelector("#playerTeam").value,captain:false,position:document.querySelector("#playerPosition").value.trim(),number:document.querySelector("#playerNumber").value,photo:""});await saveCloud();e.target.reset();}catch(err){handleError(err);}});
-document.querySelector("#eventForm").addEventListener("submit",async e=>{e.preventDefault();if(!isAdmin)return openLogin();if(!document.querySelector("#eventPlayer").value)return alert("Add a player first.");try{data.events.push({id:"E"+Date.now(),matchId:document.querySelector("#eventMatch").value,playerId:document.querySelector("#eventPlayer").value,type:document.querySelector("#eventType").value,minute:Number(document.querySelector("#eventMinute").value||0)});await saveCloud();e.target.reset();}catch(err){handleError(err);}});
-document.querySelector("#resetBtn").addEventListener("click",async()=>{if(!isAdmin)return openLogin();if(confirm("Reset all shared league scores, players and events to the original data? This affects every user.")){try{data=structuredClone(seed);await saveCloud("Shared league data reset.");}catch(err){handleError(err);}}});
-function flash(message="Saved."){const n=document.querySelector("#notice");n.textContent=message;n.style.display="block";setTimeout(()=>n.style.display="none",2400)}
-function openLogin(){document.querySelector("#loginError").style.display="none";document.querySelector("#loginModal").classList.add("open");setTimeout(()=>document.querySelector("#adminEmail").focus(),50)}
+document.querySelector("#tabs").addEventListener("click",e=>{
+  if(!e.target.dataset.tab)return;
+  if(e.target.dataset.tab==="admin"&&!isAdmin){openLogin();return;}
+  activateTab(e.target.dataset.tab);
+});
+document.querySelector("#resultForm").addEventListener("submit",async e=>{
+  e.preventDefault(); if(!isAdmin)return openLogin(); const f=data.fixtures.find(x=>x.id===document.querySelector("#resultMatch").value);
+  f.homeScore=Number(document.querySelector("#homeScore").value); f.awayScore=Number(document.querySelector("#awayScore").value);
+  try{await save();flash();e.target.reset();}catch(err){alert(err.message);}
+});
+document.querySelector("#playerForm").addEventListener("submit",async e=>{
+  e.preventDefault(); if(!isAdmin)return openLogin();
+  data.players.push({id:"P"+Date.now(),name:document.querySelector("#playerName").value.trim(),teamId:document.querySelector("#playerTeam").value,
+    position:document.querySelector("#playerPosition").value.trim(),number:document.querySelector("#playerNumber").value});
+  try{await save();flash();e.target.reset();}catch(err){alert(err.message);}
+});
+document.querySelector("#eventForm").addEventListener("submit",async e=>{
+  e.preventDefault(); if(!isAdmin)return openLogin();
+  if(!document.querySelector("#eventPlayer").value)return alert("Add a player first.");
+  data.events.push({id:"E"+Date.now(),matchId:document.querySelector("#eventMatch").value,playerId:document.querySelector("#eventPlayer").value,
+    type:document.querySelector("#eventType").value,minute:Number(document.querySelector("#eventMinute").value||0)});
+  try{await save();flash();e.target.reset();}catch(err){alert(err.message);}
+});
+document.querySelector("#resetBtn").addEventListener("click",async ()=>{
+  if(!isAdmin)return openLogin();
+  if(confirm("Reset all live league data for every user?")){data=structuredClone(seed);try{await save();flash();}catch(err){alert(err.message);}}
+});
+function flash(){const n=document.querySelector("#notice");n.style.display="block";setTimeout(()=>n.style.display="none",1800)}
+function openLogin(){document.querySelector("#loginError").style.display="none";document.querySelector("#loginModal").classList.add("open");setTimeout(()=>document.querySelector("#adminUsername").focus(),50)}
 function closeLogin(){document.querySelector("#loginModal").classList.remove("open");document.querySelector("#loginForm").reset()}
-function friendlyAuthError(error){const code=error?.code||"";if(code.includes("invalid-credential")||code.includes("wrong-password")||code.includes("user-not-found"))return "Incorrect email or password.";if(code.includes("too-many-requests"))return "Too many attempts. Try again later.";if(code.includes("network-request-failed"))return "Network error. Check your internet connection.";return error?.message||"Login failed.";}
-function handleError(error){console.error(error);const message=error?.code==="permission-denied"?"Permission denied. Confirm you are signed in with the authorized admin email and that Firestore rules are published.":(error?.message||"Something went wrong.");alert(message);}
-document.querySelector("#authBtn").addEventListener("click",async()=>{if(isAdmin){await signOut(auth);activateTab("home");}else openLogin();});
+document.querySelector("#authBtn").addEventListener("click",async ()=>{
+  if(isAdmin){
+    try{await auth.signOut();activateTab("home");}catch(err){alert(err.message);}
+  } else openLogin();
+});
 document.querySelector("#closeLogin").addEventListener("click",closeLogin);
 document.querySelector("#loginModal").addEventListener("click",e=>{if(e.target.id==="loginModal")closeLogin()});
-document.querySelector("#loginForm").addEventListener("submit",async e=>{e.preventDefault();const email=document.querySelector("#adminEmail").value.trim();const password=document.querySelector("#adminPassword").value;const errorEl=document.querySelector("#loginError");errorEl.style.display="none";try{await signInWithEmailAndPassword(auth,email,password);closeLogin();activateTab("admin");}catch(error){errorEl.textContent=friendlyAuthError(error);errorEl.style.display="block";}});
-document.addEventListener("keydown",e=>{if(e.key==="Escape")closeLogin()});
-
-onAuthStateChanged(auth, async user=>{
-  isAdmin=Boolean(user && user.email?.toLowerCase()===ADMIN_EMAIL.toLowerCase());
-  updateAuthUI();
-  if(user && !isAdmin) { await signOut(auth); alert("This account is not authorized as an administrator."); return; }
-  if(isAdmin) { try { await ensureLeagueDocument(); } catch(error) { handleError(error); } }
+document.querySelector("#loginForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const email=document.querySelector("#adminUsername").value.trim().toLowerCase();
+  const password=document.querySelector("#adminPassword").value;
+  const errorBox=document.querySelector("#loginError");
+  errorBox.style.display="none";
+  try{
+    const credential=await auth.signInWithEmailAndPassword(email,password);
+    if(credential.user.email?.toLowerCase()!==ADMIN_EMAIL){
+      await auth.signOut();
+      throw new Error("This account is not authorized as league admin.");
+    }
+    closeLogin();
+    activateTab("admin");
+  }catch(err){
+    console.error("Login error",err);
+    const messages={
+      "auth/invalid-credential":"Incorrect email or password.",
+      "auth/user-not-found":"Admin account not found.",
+      "auth/wrong-password":"Incorrect email or password.",
+      "auth/too-many-requests":"Too many attempts. Please wait and try again.",
+      "auth/network-request-failed":"Network error. Check your internet connection."
+    };
+    errorBox.textContent=messages[err.code]||err.message||"Unable to sign in.";
+    errorBox.style.display="block";
+  }
 });
 
+auth.onAuthStateChanged(user=>{
+  isAdmin=Boolean(user && user.email?.toLowerCase()===ADMIN_EMAIL);
+  updateAuthUI();
+  if(isAdmin && !cloudReady) setStatus("Admin connected • Connecting to live data…");
+});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeLogin()});
 if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
 render();
 updateAuthUI();
-startLeagueListener();
+startLiveData();

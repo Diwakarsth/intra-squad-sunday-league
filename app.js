@@ -443,7 +443,11 @@ function render(){
 
   const latest=played.at(-1);
   document.querySelector("#latestResult").innerHTML=latest?
-    `<strong>${teamName(latest.home)} ${latest.homeScore}–${latest.awayScore} ${teamName(latest.away)}</strong><div class="muted">Week ${latest.week}</div>`:
+    `<div class="result-with-scorers">
+      <div class="result-team result-home"><strong>${teamName(latest.home)}</strong>${teamScorersHtml(latest,latest.home,"left")}</div>
+      <div class="result-center"><div class="result-score">${latest.homeScore}–${latest.awayScore}</div><span class="badge">Full Time</span><div class="muted">Week ${latest.week}</div></div>
+      <div class="result-team result-away"><strong>${teamName(latest.away)}</strong>${teamScorersHtml(latest,latest.away,"right")}</div>
+    </div>`:
     `No completed match yet.`;
 
   const next=data.fixtures.find(f=>f.status!=="finished" && f.status!=="live" && f.status!=="paused");
@@ -465,9 +469,11 @@ function render(){
     const status=f.status || (Number.isInteger(f.homeScore)&&Number.isInteger(f.awayScore)?"finished":"scheduled");
     const hasScore=Number.isInteger(f.homeScore)&&Number.isInteger(f.awayScore);
     const label=status==="live"?"🔴 LIVE":status==="paused"?"Paused":status==="finished"?"Full Time":"Scheduled";
-    return `<div class="match"><div>${logoHtml(f.home)}<strong>${teamName(f.home)}</strong><div class="muted">Week ${f.week}</div></div>
+    const homeScorers=status==="finished"?teamScorersHtml(f,f.home,"left"):"";
+    const awayScorers=status==="finished"?teamScorersHtml(f,f.away,"right"):"";
+    return `<div class="match"><div>${logoHtml(f.home)}<strong>${teamName(f.home)}</strong><div class="muted">Week ${f.week}</div>${homeScorers}</div>
       <div class="score">${hasScore?`${f.homeScore}–${f.awayScore}`:"vs"}<div class="badge">${label}</div></div>
-      <div class="team-right"><strong>${teamName(f.away)}</strong>${logoHtml(f.away)}<div class="muted">${f.date||""}${f.time?` • ${f.time}`:""}${f.venue?`<br>${f.venue}`:""}</div></div></div>`;
+      <div class="team-right"><strong>${teamName(f.away)}</strong>${logoHtml(f.away)}<div class="muted">${f.date||""}${f.time?` • ${f.time}`:""}${f.venue?`<br>${f.venue}`:""}</div>${awayScorers}</div></div>`;
   }).join("");
 
   document.querySelector("#standingsBody").innerHTML=st.map((x,i)=>`<tr class="${i===0?"rank1":i===1?"rank2":i===2?"rank3":""}">
@@ -517,6 +523,22 @@ function formatClock(seconds){
 function activeMatch(){return data.fixtures.find(f=>["live","paused"].includes(normalizedStatus(f)));}
 function matchEvents(matchId){return data.events.filter(e=>e.matchId===matchId).sort((a,b)=>(a.minute||0)-(b.minute||0)||(a.createdAtMs||0)-(b.createdAtMs||0));}
 function eventIcon(type){return {"Goal":"⚽","Assist":"🎯","Yellow Card":"🟨","Red Card":"🟥","Player of the Match":"⭐"}[type]||"•";}
+
+function goalEventsForTeam(matchId, teamId){
+  return matchEvents(matchId).filter(e=>{
+    if(e.type!=="Goal")return false;
+    const p=data.players.find(x=>x.id===e.playerId);
+    return p?.teamId===teamId;
+  });
+}
+function teamScorersHtml(f, teamId, align="left"){
+  const goals=goalEventsForTeam(f.id,teamId);
+  if(!goals.length)return `<div class="team-scorers-empty">No goals</div>`;
+  return `<div class="team-scorers ${align}">${goals.map(e=>{
+    const p=data.players.find(x=>x.id===e.playerId);
+    return `<div class="team-scorer-line"><span>${p?.name||"Unknown player"}</span><strong>${Number(e.minute||0)}'</strong></div>`;
+  }).join("")}</div>`;
+}
 function renderLiveMatch(){
   const panel=document.querySelector("#liveMatchPanel"); if(!panel)return;
   const f=activeMatch(); panel.classList.toggle("visible",Boolean(f)); if(!f)return;
@@ -530,11 +552,11 @@ function renderLiveMatch(){
   document.querySelector("#liveClock").textContent=formatClock(elapsedSeconds(f));
   const timeline=matchEvents(f.id);
   const goals=timeline.filter(e=>e.type==="Goal");
-  document.querySelector("#liveGoalScorers").innerHTML=goals.length?goals.map(e=>{
-    const p=data.players.find(x=>x.id===e.playerId);
-    const side=p?.teamId===f.home?"Home":p?.teamId===f.away?"Away":"";
-    return `<div class="goal-scorer-item"><span>⚽ <strong>${p?.name||"Unknown player"}</strong></span><span><strong>${e.minute||0}'</strong>${side?` <span class="goal-side">${side}</span>`:""}</span></div>`;
-  }).join(""):`<div class="muted">No goals yet.</div>`;
+  document.querySelector("#liveGoalScorers").innerHTML=goals.length?`
+    <div class="live-team-scorers">
+      <div class="live-team-scorer-column"><h4>${teamName(f.home)}</h4>${teamScorersHtml(f,f.home,"left")}</div>
+      <div class="live-team-scorer-column away"><h4>${teamName(f.away)}</h4>${teamScorersHtml(f,f.away,"right")}</div>
+    </div>`:`<div class="muted">No goals yet.</div>`;
   document.querySelector("#liveTimeline").innerHTML=timeline.length?timeline.map(e=>{
     const p=data.players.find(x=>x.id===e.playerId);
     return `<div class="timeline-item"><strong>${e.minute||0}'</strong><span>${eventIcon(e.type)} ${e.type}${p?` — ${p.name}`:""}</span></div>`;

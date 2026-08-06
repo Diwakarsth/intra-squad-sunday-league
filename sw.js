@@ -1,4 +1,4 @@
-const C="sisl-v5-live-home";
+const C="sisl-v6-team-scorers";
 const ASSETS=[
   "./","./index.html","./app.js","./manifest.json","./icon.svg",
   "./Momo Strikers Logo.png","./Momo Strikers Jersey.png",

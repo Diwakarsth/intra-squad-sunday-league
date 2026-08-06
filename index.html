@@ -107,6 +107,8 @@
     .match-clock{font-variant-numeric:tabular-nums;font-size:22px;font-weight:900;color:#c62828;text-align:center;margin-top:10px}
     .live-scorers{margin-top:14px;background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:12px}.live-scorers h3,.timeline h3{margin:0 0 8px;font-size:15px;color:var(--navy)}
     .goal-scorer-item{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--border);font-size:14px}.goal-scorer-item:last-child{border-bottom:0}.goal-side{font-size:11px;font-weight:900;color:var(--blue);text-transform:uppercase}
+
+    .live-team-scorers{display:grid;grid-template-columns:1fr 1fr;gap:14px}.live-team-scorer-column{min-width:0}.live-team-scorer-column.away{text-align:right}.live-team-scorer-column h4{margin:0 0 6px;color:var(--navy);font-size:13px}.team-scorers{margin-top:7px;font-size:12px;color:var(--text)}.team-scorers.right{text-align:right}.team-scorer-line{display:flex;justify-content:space-between;gap:8px;padding:3px 0}.team-scorers.right .team-scorer-line{flex-direction:row-reverse}.team-scorer-line strong{white-space:nowrap;color:var(--blue)}.team-scorers-empty{margin-top:7px;font-size:11px;color:var(--muted);font-style:italic}.result-with-scorers{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:start}.result-team{min-width:0}.result-away{text-align:right}.result-center{text-align:center}.result-score{font-size:25px;font-weight:1000;color:var(--navy);white-space:nowrap}.match .team-scorers{max-width:230px}.team-right .team-scorers{margin-left:auto}
     .live-panel.paused{border-color:#b7791f}.live-panel.paused .live-badge{background:#b7791f}.live-panel.paused .match-clock{color:#b7791f}.live-panel.paused .live-dot{animation:none}
     .timeline{margin-top:14px;border-top:1px solid var(--border);padding-top:12px}
     .timeline-item{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
@@ -133,6 +135,7 @@
       th,td{padding:8px 4px;font-size:12px}
       .control-actions{grid-template-columns:1fr 1fr}
       .live-team{font-size:14px}.live-score{font-size:30px}
+      .result-with-scorers{grid-template-columns:1fr auto 1fr;gap:7px}.result-team{font-size:12px}.team-scorer-line{font-size:11px}.live-team-scorers{gap:8px}
     }
   </style>
 </head>
@@ -300,7 +303,7 @@
     </section>
   </main>
 
-  <footer>Intra Squad Sunday League v3.1.1 • Live Match Center powered by Firebase</footer>
+  <footer>Intra Squad Sunday League v3.1.2 • Live Match Center powered by Firebase</footer>
 </div>
 
 <div id="loginModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="loginTitle">

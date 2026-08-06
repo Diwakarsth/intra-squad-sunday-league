@@ -81,6 +81,7 @@
     .squad-list{margin:0;padding:0;list-style:none}
     .squad-list li{padding:7px 4px;border-bottom:1px solid var(--border);font-size:14px}
     .squad-list li:last-child{border-bottom:0}
+    .og-tag{color:#c62828;font-weight:900;margin-left:4px}
     .captain-tag{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:999px;background:var(--sky);color:var(--blue);font-size:10px;font-weight:900;text-transform:uppercase}
     .logo{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;color:white;font-weight:900;font-size:18px}
     .player-row{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
@@ -105,6 +106,10 @@
     .setting-toggle input{width:auto;margin-top:3px}
     .setting-toggle span{display:grid;gap:3px}
     .setting-toggle small{color:var(--muted);font-weight:400}
+
+    .own-goal-tag{display:inline-block;margin-left:5px;color:#c62828;font-weight:900;font-size:11px}
+    .admin-subsection{margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+    .safe-note{margin-top:12px;padding:10px 12px;border-radius:12px;background:#eefbf2;color:#1b7f3a;font-size:13px}
     footer{position:fixed;bottom:0;left:0;right:0;max-width:980px;margin:auto;background:white;border-top:1px solid var(--border);padding:8px 14px;text-align:center;color:var(--muted);font-size:12px}
 
     .live-panel{display:none;margin-bottom:12px;border:2px solid #ef4444;background:linear-gradient(135deg,#fff7f7,#fff);box-shadow:0 10px 28px rgba(198,40,40,.12)}
@@ -265,7 +270,7 @@
     <section id="admin">
       <div class="card control-center">
         <h2>League Control Center</h2>
-        <div class="muted">Start, pause, resume, score and end the selected match. Changes are visible publicly in real time.</div>
+        <div class="muted">Start, pause, resume, score, manage events and end the selected match. Changes are visible publicly in real time.</div>
         <label style="display:block;margin-top:12px">Control match<select id="controlMatch"></select></label>
         <div class="control-status">
           <div><strong id="controlMatchName">Select a match</strong><div id="controlStatusText" class="muted">Scheduled</div></div>
@@ -283,12 +288,43 @@
           <button id="resumeMatchBtn" class="btn secondary" type="button">Resume</button>
           <button id="endMatchBtn" class="btn danger" type="button">End Match</button>
         </div>
-        <label class="setting-toggle"><input id="liveStandingsToggle" type="checkbox" checked> <span><strong>Update standings during live matches</strong><small>Public table will include the current live score and show a LIVE TABLE notice.</small></span></label>
+        <label class="setting-toggle"><input id="liveStandingsToggle" type="checkbox" checked> <span><strong>Update standings during live matches</strong><small>Public table includes the current live score and shows a LIVE TABLE notice.</small></span></label>
+
+        <div class="admin-subsection">
+          <h3>Add match event</h3>
+          <form id="eventForm">
+            <label>Match<select id="eventMatch"></select></label>
+            <label>Player<select id="eventPlayer"></select></label>
+            <div class="row">
+              <label>Event<select id="eventType">
+                <option>Goal</option><option>Own Goal</option><option>Assist</option><option>Yellow Card</option><option>Red Card</option><option>Player of the Match</option>
+              </select></label>
+              <label>Minute<input id="eventMinute" type="number" min="0" max="120"></label>
+            </div>
+            <div id="ownGoalHelp" class="muted" style="display:none">For an own goal, choose the player who scored against their own team. The scorer will appear with a red OG label under the opposing team.</div>
+            <button class="btn" type="submit">Add event</button>
+          </form>
+        </div>
+
+        <div class="admin-subsection">
+          <div class="event-manager-head">
+            <div><h3>Manage match events</h3><div class="muted">Choose a match, then remove any incorrect goal, own goal, assist, card or Player of the Match entry.</div></div>
+          </div>
+          <div class="row">
+            <label>Match<select id="manageEventMatch"></select></label>
+            <label>Recorded event<select id="manageEventEntry"></select></label>
+          </div>
+          <div id="manageEventDetails" class="muted" style="padding:12px 0">Select an event to view its details.</div>
+          <button id="removeSelectedEventBtn" class="btn danger" type="button" style="width:100%" disabled>Remove selected event</button>
+          <div id="manageEventList" style="margin-top:12px"></div>
+        </div>
       </div>
+
       <div class="grid cards-2" style="margin-top:12px">
         <div class="card">
           <h3>Update result</h3>
-          <form id="resultForm">
+          <div class="muted">Edit any scheduled, live, or completed match without resetting league data.</div>
+          <form id="resultForm" style="margin-top:10px">
             <label>Match<select id="resultMatch"></select></label>
             <div class="row">
               <label>Home score<input id="homeScore" type="number" min="0" required></label>
@@ -298,74 +334,45 @@
           </form>
         </div>
         <div class="card">
-          <h3>Add player</h3>
-          <form id="playerForm">
-            <label>Player name<input id="playerName" required></label>
-            <label>Team<select id="playerTeam"></select></label>
-            <div class="row">
-              <label>Position (optional)<input id="playerPosition" placeholder="Leave blank"></label>
-              <label>Jersey number (optional)<input id="playerNumber" type="number" min="1" max="99" placeholder="Leave blank"></label>
-            </div>
-            <button class="btn secondary" type="submit">Add player</button>
-          </form>
+          <h3>Data protection</h3>
+          <div class="muted">Player transfers, captain changes, scores, and match events are saved permanently in Firebase. The reset option has been removed to prevent accidental loss of completed-game data.</div>
         </div>
       </div>
 
       <div class="card" style="margin-top:12px">
         <h3>Team Management</h3>
-        <div class="muted">Remove a player from a roster or transfer a player to another team while preserving all match history.</div>
+        <div class="muted">Add, remove, transfer players, or change the team captain. Historical match events remain unchanged.</div>
         <form id="teamManagementForm" style="margin-top:12px">
           <div class="row">
-            <label>Current team<select id="managePlayerTeam"></select></label>
-            <label>Player<select id="managePlayerSelect"></select></label>
-          </div>
-          <div class="row">
+            <label>Team<select id="managePlayerTeam"></select></label>
             <label>Action<select id="managePlayerAction">
+              <option value="add">Add player</option>
               <option value="remove">Remove from team</option>
               <option value="transfer">Transfer to another team</option>
+              <option value="captain">Change captain</option>
             </select></label>
+          </div>
+          <div id="existingPlayerFields" class="row" style="display:none">
+            <label>Player<select id="managePlayerSelect"></select></label>
             <label id="transferTeamLabel" style="display:none">Transfer to<select id="transferPlayerTeam"></select></label>
           </div>
-          <button id="applyPlayerManagementBtn" class="btn secondary" type="submit">Remove selected player</button>
+          <div id="addPlayerFields">
+            <div class="row">
+              <label>Player name<input id="manageNewPlayerName" placeholder="Enter player name"></label>
+              <label>Jersey number (optional)<input id="manageNewPlayerNumber" type="number" min="1" max="99" placeholder="Leave blank"></label>
+            </div>
+            <label>Position (optional)<input id="manageNewPlayerPosition" placeholder="Leave blank"></label>
+          </div>
+          <button id="applyPlayerManagementBtn" class="btn secondary" type="submit">Add player</button>
         </form>
         <div id="managePlayerSummary" class="muted" style="margin-top:12px"></div>
       </div>
 
-      <div class="card" style="margin-top:12px">
-        <h3>Add match event</h3>
-        <form id="eventForm">
-          <label>Match<select id="eventMatch"></select></label>
-          <label>Player<select id="eventPlayer"></select></label>
-          <div class="row">
-            <label>Event<select id="eventType">
-              <option>Goal</option><option>Assist</option><option>Yellow Card</option><option>Red Card</option><option>Player of the Match</option>
-            </select></label>
-            <label>Minute<input id="eventMinute" type="number" min="0" max="120"></label>
-          </div>
-          <button class="btn" type="submit">Add event</button>
-        </form>
-      </div>
-
-
-      <div class="card" style="margin-top:12px">
-        <div class="event-manager-head">
-          <div><h3>Manage match events</h3><div class="muted">Choose a match, then choose the incorrect event to remove.</div></div>
-        </div>
-        <div class="row">
-          <label>Match<select id="manageEventMatch"></select></label>
-          <label>Recorded event<select id="manageEventEntry"></select></label>
-        </div>
-        <div id="manageEventDetails" class="muted" style="padding:12px 0">Select an event to view its details.</div>
-        <button id="removeSelectedEventBtn" class="btn danger" type="button" style="width:100%" disabled>Remove selected event</button>
-        <div id="manageEventList" style="margin-top:12px"></div>
-      </div>
-
       <div id="notice" class="notice" style="margin-top:12px">Saved.</div>
-      <button id="resetBtn" class="btn danger" style="margin-top:12px;width:100%">Reset demo data</button>
     </section>
   </main>
 
-  <footer>Intra Squad Sunday League v3.1.9 • Unplayed Match & Standings Fix powered by Firebase</footer>
+  <footer>Intra Squad Sunday League v3.2.0 • Persistent Teams, Own Goals & Safer Editing powered by Firebase</footer>
 </div>
 
 <div id="loginModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="loginTitle">

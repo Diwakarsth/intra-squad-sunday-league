@@ -559,21 +559,27 @@ function formatClock(seconds){
 }
 function activeMatch(){return data.fixtures.find(f=>["live","paused","halftime"].includes(normalizedStatus(f)));}
 function matchEvents(matchId){return data.events.filter(e=>e.matchId===matchId).sort((a,b)=>(a.minute||0)-(b.minute||0)||(a.createdAtMs||0)-(b.createdAtMs||0));}
-function eventIcon(type){return {"Goal":"⚽","Assist":"🎯","Yellow Card":"🟨","Red Card":"🟥","Player of the Match":"⭐"}[type]||"•";}
+function eventIcon(type){return {"Goal":"⚽","Own Goal":"⚽","Assist":"🎯","Yellow Card":"🟨","Red Card":"🟥","Player of the Match":"⭐"}[type]||"•";}
 
+function eventScoringTeamId(event, match){
+  const player=data.players.find(x=>x.id===event.playerId);
+  const playerTeamId=event.teamId || player?.teamId || "";
+  if(event.type==="Own Goal"){
+    if(playerTeamId===match?.home)return match.away;
+    if(playerTeamId===match?.away)return match.home;
+  }
+  return playerTeamId;
+}
 function goalEventsForTeam(matchId, teamId){
-  return matchEvents(matchId).filter(e=>{
-    if(e.type!=="Goal")return false;
-    const p=data.players.find(x=>x.id===e.playerId);
-    return (e.teamId || p?.teamId)===teamId;
-  });
+  const match=data.fixtures.find(f=>f.id===matchId);
+  return matchEvents(matchId).filter(e=>["Goal","Own Goal"].includes(e.type) && eventScoringTeamId(e,match)===teamId);
 }
 function teamScorersHtml(f, teamId, align="left"){
   const goals=goalEventsForTeam(f.id,teamId);
   if(!goals.length)return `<div class="team-scorers-empty">No goals</div>`;
   return `<div class="team-scorers ${align}">${goals.map(e=>{
     const p=data.players.find(x=>x.id===e.playerId);
-    return `<div class="team-scorer-line"><span>${p?.name||"Unknown player"}</span><strong>${Number(e.minute||0)}'</strong></div>`;
+    return `<div class="team-scorer-line"><span>${p?.name||"Unknown player"}${e.type==="Own Goal"?` <span class="og-tag">OG</span>`:""}</span><strong>${Number(e.minute||0)}'</strong></div>`;
   }).join("")}</div>`;
 }
 function renderLiveMatch(){
@@ -588,7 +594,7 @@ function renderLiveMatch(){
   document.querySelector("#liveMatchWeek").textContent=`Week ${f.week} • ${f.venue||""}`;
   document.querySelector("#liveClock").textContent=formatClock(elapsedSeconds(f));
   const timeline=matchEvents(f.id);
-  const goals=timeline.filter(e=>e.type==="Goal");
+  const goals=timeline.filter(e=>["Goal","Own Goal"].includes(e.type));
   document.querySelector("#liveGoalScorers").innerHTML=goals.length?`
     <div class="live-team-scorers">
       <div class="live-team-scorer-column"><h4>${teamName(f.home)}</h4>${teamScorersHtml(f,f.home,"left")}</div>
@@ -596,7 +602,7 @@ function renderLiveMatch(){
     </div>`:`<div class="muted">No goals yet.</div>`;
   document.querySelector("#liveTimeline").innerHTML=timeline.length?timeline.map(e=>{
     const p=data.players.find(x=>x.id===e.playerId);
-    return `<div class="timeline-item"><strong>${e.minute||0}'</strong><span>${eventIcon(e.type)} ${e.type}${p?` — ${p.name}`:""}</span></div>`;
+    return `<div class="timeline-item"><strong>${e.minute||0}'</strong><span>${eventIcon(e.type)} ${e.type}${p?` — ${p.name}${e.type==="Own Goal"?` <span class="og-tag">OG</span>`:""}`:""}</span></div>`;
   }).join(""):`<div class="muted">Live match events will appear here.</div>`;
 }
 function selectedControlMatch(){const id=document.querySelector("#controlMatch")?.value;return data.fixtures.find(f=>f.id===id)||data.fixtures[0];}
@@ -669,7 +675,7 @@ function renderEventManager(){
     const p=data.players.find(x=>x.id===e.playerId);
     return `<div class="managed-event">
       <div class="managed-event-minute">${Number(e.minute||0)}'</div>
-      <div><div class="managed-event-type">${eventIcon(e.type)} ${e.type}</div><div class="muted">${p?.name||"Unknown player"} • ${teamName(p?.teamId)}</div></div>
+      <div><div class="managed-event-type">${eventIcon(e.type)} ${e.type}</div><div class="muted">${p?.name||"Unknown player"}${e.type==="Own Goal"?` <span class="og-tag">OG</span>`:""} • ${teamName(p?.teamId)}</div></div>
       <button class="delete-event-btn" type="button" data-event-id="${e.id}">Remove</button>
     </div>`;
   }).join(""):`<div class="muted" style="padding:10px 0">No events recorded for this match.</div>`;
@@ -681,6 +687,13 @@ async function removeEvent(eventId){
   const p=data.players.find(x=>x.id===event.playerId);
   const description=`${event.type}${p?` for ${p.name}`:""} at ${Number(event.minute||0)}'`;
   if(!confirm(`Remove ${description}?`))return;
+  if(event.type==="Own Goal"){
+    const match=data.fixtures.find(f=>f.id===event.matchId);
+    const player=data.players.find(p=>p.id===event.playerId);
+    const playerTeamId=event.teamId || player?.teamId;
+    if(match && playerTeamId===match.home)match.awayScore=Math.max(0,Number(match.awayScore||0)-1);
+    else if(match && playerTeamId===match.away)match.homeScore=Math.max(0,Number(match.homeScore||0)-1);
+  }
   data.events=data.events.filter(e=>String(e.id)!==String(eventId));
   try{await save();flash();renderEventManager();}catch(err){alert(err.message);}
 }
@@ -701,10 +714,11 @@ function renderTeamManager(){
   const actionSelect=document.querySelector("#managePlayerAction");
   const destinationSelect=document.querySelector("#transferPlayerTeam");
   const destinationLabel=document.querySelector("#transferTeamLabel");
+  const existingFields=document.querySelector("#existingPlayerFields");
+  const addFields=document.querySelector("#addPlayerFields");
   const applyBtn=document.querySelector("#applyPlayerManagementBtn");
   const summary=document.querySelector("#managePlayerSummary");
-  if(!teamSelect||!playerSelect||!actionSelect||!destinationSelect||!destinationLabel||!applyBtn||!summary)return;
-
+  if(!teamSelect||!playerSelect||!actionSelect||!destinationSelect||!destinationLabel||!existingFields||!addFields||!applyBtn||!summary)return;
   const teamId=selectedManagedTeamId();
   const players=activePlayersForTeam(teamId);
   const previousPlayer=playerSelect.value;
@@ -712,61 +726,63 @@ function renderTeamManager(){
     ? `<option value="">Select a player</option>${players.map(p=>`<option value="${p.id}">${p.name}${p.captain?" (Captain)":""}</option>`).join("")}`
     : `<option value="">No active players on this team</option>`;
   if(players.some(p=>String(p.id)===String(previousPlayer)))playerSelect.value=previousPlayer;
-
-  const action=actionSelect.value || "remove";
+  const action=actionSelect.value || "add";
+  const adding=action==="add";
+  existingFields.style.display=adding?"none":"grid";
+  addFields.style.display=adding?"block":"none";
   const isTransfer=action==="transfer";
   destinationLabel.style.display=isTransfer?"block":"none";
   const previousDestination=destinationSelect.value;
   const destinations=data.teams.filter(t=>t.id!==teamId);
   destinationSelect.innerHTML=destinations.map(t=>`<option value="${t.id}">${t.name}</option>`).join("");
   if(destinations.some(t=>t.id===previousDestination))destinationSelect.value=previousDestination;
-
+  const labels={add:"Add player",remove:"Remove selected player",transfer:"Transfer selected player",captain:"Make selected player captain"};
+  applyBtn.textContent=labels[action]||"Apply change";
   const player=selectedManagedPlayer();
-  applyBtn.disabled=!player || (isTransfer && !destinationSelect.value);
-  applyBtn.textContent=isTransfer?"Transfer selected player":"Remove selected player";
-  if(!player){
-    summary.textContent=players.length?"Choose a player, then remove or transfer them.":"No active players are registered on this team.";
+  applyBtn.disabled=!adding && !player;
+  if(adding){summary.textContent=`Add a new player permanently to ${teamName(teamId)}.`;return;}
+  if(action==="captain"){
+    const captain=players.find(p=>p.captain);
+    summary.textContent=captain?`Current captain: ${captain.name}. Select another player to replace them.`:"No captain is currently selected.";
     return;
   }
-  const stats=statsFor(player.id);
-  summary.innerHTML=`<strong>${player.name}</strong> • ${stats.goals} goal${stats.goals===1?"":"s"}, ${stats.assists} assist${stats.assists===1?"":"s"}, ${stats.yellow} yellow, ${stats.red} red, ${stats.potm} POTM. Historical records will be preserved.`;
+  summary.textContent=players.length?"Choose a player and apply the selected action. Transfers are saved permanently in Firebase.":"No active players are registered on this team.";
 }
 function preservePlayerEventTeam(playerId, oldTeamId){
   data.events=data.events.map(e=>String(e.playerId)===String(playerId) && !e.teamId ? {...e,teamId:oldTeamId} : e);
 }
 async function applyPlayerManagement(){
   if(!isAdmin)return openLogin();
-  const player=selectedManagedPlayer();
-  if(!player)return alert("Select a player first.");
+  const teamId=selectedManagedTeamId();
   const action=document.querySelector("#managePlayerAction").value;
-  const oldTeamId=player.teamId;
-  preservePlayerEventTeam(player.id,oldTeamId);
-
-  if(action==="transfer"){
-    const newTeamId=document.querySelector("#transferPlayerTeam").value;
-    if(!newTeamId || newTeamId===oldTeamId)return alert("Choose a different destination team.");
-    if(!confirm(`Transfer ${player.name} from ${teamName(oldTeamId)} to ${teamName(newTeamId)}?
-
-All previous match history will remain with ${teamName(oldTeamId)}.`))return;
-    player.teamId=newTeamId;
-    player.active=true;
-    player.captain=false;
-    player.transferredAtMs=Date.now();
-    player.previousTeamId=oldTeamId;
+  if(action==="add"){
+    const name=document.querySelector("#manageNewPlayerName").value.trim();
+    if(!name)return alert("Enter the player's name.");
+    data.players.push({id:`P${Date.now()}`,name,teamId,active:true,captain:false,number:document.querySelector("#manageNewPlayerNumber").value,position:document.querySelector("#manageNewPlayerPosition").value.trim(),photo:"",createdAtMs:Date.now()});
+    document.querySelector("#manageNewPlayerName").value="";
+    document.querySelector("#manageNewPlayerNumber").value="";
+    document.querySelector("#manageNewPlayerPosition").value="";
   }else{
-    const stats=statsFor(player.id);
-    const summary=`${stats.goals} goal${stats.goals===1?"":"s"}, ${stats.assists} assist${stats.assists===1?"":"s"}, ${stats.yellow} yellow card${stats.yellow===1?"":"s"}, ${stats.red} red card${stats.red===1?"":"s"}, ${stats.potm} Player of the Match award${stats.potm===1?"":"s"}`;
-    if(!confirm(`Remove ${player.name} from ${teamName(oldTeamId)}?
-
-Their historical statistics will remain: ${summary}.`))return;
-    player.active=false;
-    player.removedAtMs=Date.now();
+    const player=selectedManagedPlayer();
+    if(!player)return alert("Select a player first.");
+    const oldTeamId=player.teamId;
+    preservePlayerEventTeam(player.id,oldTeamId);
+    if(action==="transfer"){
+      const newTeamId=document.querySelector("#transferPlayerTeam").value;
+      if(!newTeamId || newTeamId===oldTeamId)return alert("Choose a different destination team.");
+      if(!confirm(`Transfer ${player.name} from ${teamName(oldTeamId)} to ${teamName(newTeamId)}? This change is permanent.`))return;
+      player.previousTeamId=oldTeamId; player.teamId=newTeamId; player.active=true; player.captain=false; player.transferredAtMs=Date.now();
+    }else if(action==="captain"){
+      if(!confirm(`Make ${player.name} captain of ${teamName(teamId)}?`))return;
+      data.players.filter(p=>p.teamId===teamId).forEach(p=>p.captain=false);
+      player.captain=true; player.captainSinceMs=Date.now();
+    }else{
+      const stats=statsFor(player.id);
+      if(!confirm(`Remove ${player.name} from ${teamName(oldTeamId)}? Historical statistics will remain (${stats.goals} goals, ${stats.assists} assists, ${stats.yellow} yellow cards, ${stats.red} red cards, ${stats.potm} POTM awards).`))return;
+      player.active=false; player.captain=false; player.removedAtMs=Date.now();
+    }
   }
-  try{
-    render();
-    await save();
-    flash();
-  }catch(err){alert(err.message);}
+  try{render();await save();flash();}catch(err){alert(err.message);}
 }
 
 function fillSelects(){
@@ -779,7 +795,6 @@ function fillSelects(){
     if([...el.options].some(o=>o.value===current))el.value=current;
   });
   const teamOptions=data.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join("");
-  document.querySelector("#playerTeam").innerHTML=teamOptions;
   const manageTeam=document.querySelector("#managePlayerTeam");
   if(manageTeam){
     const current=manageTeam.value;
@@ -799,11 +814,9 @@ document.querySelector("#resultForm").addEventListener("submit",async e=>{
   f.homeScore=Number(document.querySelector("#homeScore").value); f.awayScore=Number(document.querySelector("#awayScore").value); f.status="finished"; f.startedAtMs=null; f.finishedAtMs=Date.now();
   try{await save();flash();e.target.reset();}catch(err){alert(err.message);}
 });
-document.querySelector("#playerForm").addEventListener("submit",async e=>{
-  e.preventDefault(); if(!isAdmin)return openLogin();
-  data.players.push({id:"P"+Date.now(),name:document.querySelector("#playerName").value.trim(),teamId:document.querySelector("#playerTeam").value,
-    position:document.querySelector("#playerPosition").value.trim(),number:document.querySelector("#playerNumber").value,active:true});
-  try{await save();flash();e.target.reset();}catch(err){alert(err.message);}
+document.querySelector("#eventType").addEventListener("change",e=>{
+  const help=document.querySelector("#ownGoalHelp");
+  if(help)help.style.display=e.target.value==="Own Goal"?"block":"none";
 });
 document.querySelector("#eventForm").addEventListener("submit",async e=>{
   e.preventDefault(); if(!isAdmin)return openLogin();
@@ -813,8 +826,13 @@ document.querySelector("#eventForm").addEventListener("submit",async e=>{
   const minuteInput=document.querySelector("#eventMinute").value;
   const selectedPlayer=data.players.find(p=>p.id===document.querySelector("#eventPlayer").value);
   const autoMinute=eventMatch && ["live","paused","halftime"].includes(normalizedStatus(eventMatch)) ? Math.floor(elapsedSeconds(eventMatch)/60) : 0;
+  const eventType=document.querySelector("#eventType").value;
   data.events.push({id:"E"+Date.now(),matchId,playerId:document.querySelector("#eventPlayer").value,teamId:selectedPlayer?.teamId||"",
-    type:document.querySelector("#eventType").value,minute:minuteInput===""?autoMinute:Number(minuteInput),createdAtMs:Date.now()});
+    type:eventType,minute:minuteInput===""?autoMinute:Number(minuteInput),createdAtMs:Date.now()});
+  if(eventType==="Own Goal" && eventMatch){
+    if(selectedPlayer?.teamId===eventMatch.home)eventMatch.awayScore=Number(eventMatch.awayScore||0)+1;
+    else if(selectedPlayer?.teamId===eventMatch.away)eventMatch.homeScore=Number(eventMatch.homeScore||0)+1;
+  }
   try{await save();flash();e.target.reset();}catch(err){alert(err.message);}
 });
 
@@ -894,10 +912,6 @@ setInterval(()=>{
   renderLiveTableNotice();
 },1000);
 
-document.querySelector("#resetBtn").addEventListener("click",async ()=>{
-  if(!isAdmin)return openLogin();
-  if(confirm("Reset all live league data for every user?")){data=structuredClone(seed);try{await save();flash();}catch(err){alert(err.message);}}
-});
 function flash(){const n=document.querySelector("#notice");n.style.display="block";setTimeout(()=>n.style.display="none",1800)}
 function openLogin(){document.querySelector("#loginError").style.display="none";document.querySelector("#loginModal").classList.add("open");setTimeout(()=>document.querySelector("#adminUsername").focus(),50)}
 function closeLogin(){document.querySelector("#loginModal").classList.remove("open");document.querySelector("#loginForm").reset()}

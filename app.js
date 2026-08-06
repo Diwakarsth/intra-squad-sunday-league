@@ -376,7 +376,10 @@ function startLiveData(){
         teams: Array.isArray(remote.teams) ? remote.teams : structuredClone(seed.teams),
         players: Array.isArray(remote.players) ? remote.players : structuredClone(seed.players),
         fixtures: Array.isArray(remote.fixtures) ? remote.fixtures : structuredClone(seed.fixtures),
-        events: Array.isArray(remote.events) ? remote.events : []
+        events: (Array.isArray(remote.events) ? remote.events : []).map((event,index)=>({
+          ...event,
+          id: event.id || `LEGACY-${event.matchId||"MATCH"}-${event.createdAtMs||event.minute||0}-${index}`
+        }))
       };
       setStatus(isAdmin ? "Admin connected • Live data synced" : "Live public data connected");
       render();
@@ -588,12 +591,42 @@ async function updateControlledMatch(mutator){
 
 function managedEventMatchId(){
   const el=document.querySelector("#manageEventMatch");
-  return el?.value || data.fixtures[0]?.id || "";
+  return el?.value || data.fixtures?.[0]?.id || "";
+}
+function eventDisplayText(e){
+  const p=data.players.find(x=>x.id===e.playerId);
+  return `${Number(e.minute||0)}' • ${eventIcon(e.type)} ${e.type} • ${p?.name||"Unknown player"}`;
+}
+function selectedManagedEvent(){
+  const id=document.querySelector("#manageEventEntry")?.value;
+  return data.events.find(e=>String(e.id)===String(id));
 }
 function renderEventManager(){
+  const matchSelect=document.querySelector("#manageEventMatch");
+  const eventSelect=document.querySelector("#manageEventEntry");
+  const details=document.querySelector("#manageEventDetails");
   const list=document.querySelector("#manageEventList");
-  if(!list)return;
-  const events=matchEvents(managedEventMatchId());
+  const removeBtn=document.querySelector("#removeSelectedEventBtn");
+  if(!matchSelect||!eventSelect||!details||!list||!removeBtn)return;
+
+  const matchId=managedEventMatchId();
+  const events=matchEvents(matchId);
+  const previous=eventSelect.value;
+  eventSelect.innerHTML=events.length
+    ? `<option value="">Select an event</option>${events.map(e=>`<option value="${e.id}">${eventDisplayText(e)}</option>`).join("")}`
+    : `<option value="">No recorded events for this match</option>`;
+  if(events.some(e=>String(e.id)===String(previous)))eventSelect.value=previous;
+
+  const chosen=selectedManagedEvent();
+  if(chosen){
+    const p=data.players.find(x=>x.id===chosen.playerId);
+    details.innerHTML=`<strong>${eventIcon(chosen.type)} ${chosen.type}</strong><br>${p?.name||"Unknown player"} • ${teamName(p?.teamId)} • ${Number(chosen.minute||0)}'`;
+    removeBtn.disabled=false;
+  }else{
+    details.textContent=events.length?"Select an event from the dropdown above.":"No events have been recorded for this match.";
+    removeBtn.disabled=true;
+  }
+
   list.innerHTML=events.length?events.map(e=>{
     const p=data.players.find(x=>x.id===e.playerId);
     return `<div class="managed-event">
@@ -605,20 +638,22 @@ function renderEventManager(){
 }
 async function removeEvent(eventId){
   if(!isAdmin)return openLogin();
-  const event=data.events.find(e=>e.id===eventId);
-  if(!event)return;
+  const event=data.events.find(e=>String(e.id)===String(eventId));
+  if(!event)return alert("The selected event could not be found. Refresh the page and try again.");
   const p=data.players.find(x=>x.id===event.playerId);
   const description=`${event.type}${p?` for ${p.name}`:""} at ${Number(event.minute||0)}'`;
   if(!confirm(`Remove ${description}?`))return;
-  data.events=data.events.filter(e=>e.id!==eventId);
-  try{await save();flash();}catch(err){alert(err.message);}
+  data.events=data.events.filter(e=>String(e.id)!==String(eventId));
+  try{await save();flash();renderEventManager();}catch(err){alert(err.message);}
 }
 
 function fillSelects(){
-  const openMatches=data.fixtures;
+  const openMatches=Array.isArray(data.fixtures)?data.fixtures:[];
   ["resultMatch","eventMatch","controlMatch","manageEventMatch"].forEach(id=>{
-    const el=document.querySelector("#"+id), current=el.value;
-    el.innerHTML=openMatches.map(f=>`<option value="${f.id}">${f.id}: ${teamName(f.home)} vs ${teamName(f.away)}</option>`).join("");
+    const el=document.querySelector("#"+id);
+    if(!el)return;
+    const current=el.value;
+    el.innerHTML=openMatches.length?openMatches.map(f=>`<option value="${f.id}">${f.id}: ${teamName(f.home)} vs ${teamName(f.away)}</option>`).join(""):`<option value="">No matches available</option>`;
     if([...el.options].some(o=>o.value===current))el.value=current;
   });
   const teamOptions=data.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join("");
@@ -654,6 +689,11 @@ document.querySelector("#eventForm").addEventListener("submit",async e=>{
 });
 
 document.querySelector("#manageEventMatch").addEventListener("change",renderEventManager);
+document.querySelector("#manageEventEntry").addEventListener("change",renderEventManager);
+document.querySelector("#removeSelectedEventBtn").addEventListener("click",()=>{
+  const event=selectedManagedEvent();
+  if(event)removeEvent(event.id);
+});
 document.querySelector("#manageEventList").addEventListener("click",e=>{
   const btn=e.target.closest("[data-event-id]");
   if(btn)removeEvent(btn.dataset.eventId);

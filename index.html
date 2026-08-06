@@ -314,10 +314,15 @@
 
       <div class="card" style="margin-top:12px">
         <div class="event-manager-head">
-          <div><h3>Manage match events</h3><div class="muted">Remove an incorrect goal, assist, card, or Player of the Match entry.</div></div>
-          <label class="event-filter-label">Match<select id="manageEventMatch"></select></label>
+          <div><h3>Manage match events</h3><div class="muted">Choose a match, then choose the incorrect event to remove.</div></div>
         </div>
-        <div id="manageEventList"></div>
+        <div class="row">
+          <label>Match<select id="manageEventMatch"></select></label>
+          <label>Recorded event<select id="manageEventEntry"></select></label>
+        </div>
+        <div id="manageEventDetails" class="muted" style="padding:12px 0">Select an event to view its details.</div>
+        <button id="removeSelectedEventBtn" class="btn danger" type="button" style="width:100%" disabled>Remove selected event</button>
+        <div id="manageEventList" style="margin-top:12px"></div>
       </div>
 
       <div id="notice" class="notice" style="margin-top:12px">Saved.</div>
@@ -325,7 +330,7 @@
     </section>
   </main>
 
-  <footer>Intra Squad Sunday League v3.1.3 • Live Match Center powered by Firebase</footer>
+  <footer>Intra Squad Sunday League v3.1.4 • Live Match Center powered by Firebase</footer>
 </div>
 
 <div id="loginModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="loginTitle">

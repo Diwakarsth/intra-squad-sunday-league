@@ -561,6 +561,41 @@ function activeMatch(){return data.fixtures.find(f=>["live","paused","halftime"]
 function matchEvents(matchId){return data.events.filter(e=>e.matchId===matchId).sort((a,b)=>(a.minute||0)-(b.minute||0)||(a.createdAtMs||0)-(b.createdAtMs||0));}
 function eventIcon(type){return {"Goal":"⚽","Own Goal":"⚽","Assist":"🎯","Yellow Card":"🟨","Red Card":"🟥","Player of the Match":"⭐"}[type]||"•";}
 
+let pendingGoalTeamId="";
+function eventPlayersForMatch(matchId, teamFilterId=""){
+  const match=data.fixtures.find(f=>f.id===matchId);
+  if(!match)return [];
+  return data.players
+    .filter(p=>p.active!==false && [match.home,match.away].includes(p.teamId) && (!teamFilterId || p.teamId===teamFilterId))
+    .sort((a,b)=>a.name.localeCompare(b.name));
+}
+function refreshEventPlayerOptions(teamFilterId=pendingGoalTeamId){
+  const select=document.querySelector("#eventPlayer");
+  if(!select)return;
+  const current=select.value;
+  const matchId=document.querySelector("#eventMatch")?.value || "";
+  const players=eventPlayersForMatch(matchId,teamFilterId);
+  select.innerHTML=players.length
+    ? `<option value="">Select a player</option>${players.map(p=>`<option value="${p.id}">${p.name} — ${teamName(p.teamId)}</option>`).join("")}`
+    : `<option value="">No eligible players for this match</option>`;
+  if(players.some(p=>p.id===current))select.value=current;
+}
+function prepareGoalEvent(teamId){
+  if(!isAdmin)return openLogin();
+  const match=selectedControlMatch();
+  if(!match || normalizedStatus(match)!=="live")return alert("Start or resume the match before recording a goal.");
+  pendingGoalTeamId=teamId;
+  const matchSelect=document.querySelector("#eventMatch");
+  const typeSelect=document.querySelector("#eventType");
+  if(matchSelect)matchSelect.value=match.id;
+  if(typeSelect)typeSelect.value="Goal";
+  refreshEventPlayerOptions(teamId);
+  const help=document.querySelector("#ownGoalHelp");
+  if(help){help.style.display="block";help.innerHTML=`Select the scorer for <strong>${teamName(teamId)}</strong>, then click <strong>Add event</strong>. The live score will increase automatically.`;}
+  document.querySelector("#eventForm")?.scrollIntoView({behavior:"smooth",block:"center"});
+  setTimeout(()=>document.querySelector("#eventPlayer")?.focus(),350);
+}
+
 function eventScoringTeamId(event, match){
   const player=data.players.find(x=>x.id===event.playerId);
   const playerTeamId=event.teamId || player?.teamId || "";
@@ -622,6 +657,7 @@ function renderControlCenter(){
   document.querySelector("#resumeMatchBtn").disabled=!["paused","halftime"].includes(status);
   document.querySelector("#resumeMatchBtn").textContent=status==="halftime"?"Start Second Half":"Resume";
   document.querySelector("#endMatchBtn").disabled=!["live","paused","halftime"].includes(status);
+  document.querySelector("#resetCompletedMatchBtn").disabled=status!=="finished";
   document.querySelector("#homeGoalBtn").disabled=status!=="live";
   document.querySelector("#awayGoalBtn").disabled=status!=="live";
 }
@@ -645,15 +681,37 @@ function selectedManagedEvent(){
   const id=document.querySelector("#manageEventEntry")?.value;
   return data.events.find(e=>String(e.id)===String(id));
 }
+function playerTeamForMatch(player, match, existingEvent=null){
+  if(!player||!match)return "";
+  if([match.home,match.away].includes(player.teamId))return player.teamId;
+  if([match.home,match.away].includes(player.previousTeamId))return player.previousTeamId;
+  if(existingEvent && String(existingEvent.playerId)===String(player.id) && [match.home,match.away].includes(existingEvent.teamId))return existingEvent.teamId;
+  return "";
+}
+function adjustScoreForEvent(event, direction){
+  if(!event || !["Goal","Own Goal"].includes(event.type))return;
+  const match=data.fixtures.find(f=>f.id===event.matchId);
+  if(!match)return;
+  const scoringTeamId=eventScoringTeamId(event,match);
+  const delta=direction>=0?1:-1;
+  if(scoringTeamId===match.home)match.homeScore=Math.max(0,Number(match.homeScore||0)+delta);
+  else if(scoringTeamId===match.away)match.awayScore=Math.max(0,Number(match.awayScore||0)+delta);
+}
 function renderEventManager(){
   const matchSelect=document.querySelector("#manageEventMatch");
   const eventSelect=document.querySelector("#manageEventEntry");
   const details=document.querySelector("#manageEventDetails");
   const list=document.querySelector("#manageEventList");
   const removeBtn=document.querySelector("#removeSelectedEventBtn");
-  if(!matchSelect||!eventSelect||!details||!list||!removeBtn)return;
+  const editPanel=document.querySelector("#editEventPanel");
+  const editPlayer=document.querySelector("#editEventPlayer");
+  const editType=document.querySelector("#editEventType");
+  const editMinute=document.querySelector("#editEventMinute");
+  const saveEditBtn=document.querySelector("#saveEventChangesBtn");
+  if(!matchSelect||!eventSelect||!details||!list||!removeBtn||!editPanel||!editPlayer||!editType||!editMinute||!saveEditBtn)return;
 
   const matchId=managedEventMatchId();
+  const match=data.fixtures.find(f=>f.id===matchId);
   const events=matchEvents(matchId);
   const previous=eventSelect.value;
   eventSelect.innerHTML=events.length
@@ -662,24 +720,75 @@ function renderEventManager(){
   if(events.some(e=>String(e.id)===String(previous)))eventSelect.value=previous;
 
   const chosen=selectedManagedEvent();
-  if(chosen){
+  if(chosen && match){
     const p=data.players.find(x=>x.id===chosen.playerId);
-    details.innerHTML=`<strong>${eventIcon(chosen.type)} ${chosen.type}</strong><br>${p?.name||"Unknown player"} • ${teamName(p?.teamId)} • ${Number(chosen.minute||0)}'`;
+    const eligiblePlayers=data.players.filter(player=>{
+      if(String(player.id)===String(chosen.playerId))return true;
+      return Boolean(playerTeamForMatch(player,match));
+    }).sort((a,b)=>a.name.localeCompare(b.name));
+    editPlayer.innerHTML=eligiblePlayers.map(player=>{
+      const matchTeam=playerTeamForMatch(player,match,chosen);
+      return `<option value="${player.id}">${player.name} — ${teamName(matchTeam||player.teamId)}</option>`;
+    }).join("");
+    editPlayer.value=chosen.playerId;
+    editType.value=chosen.type;
+    editMinute.value=Number(chosen.minute||0);
+    details.innerHTML=`<strong>${eventIcon(chosen.type)} ${chosen.type}</strong><br>${p?.name||"Unknown player"} • ${teamName(chosen.teamId||p?.teamId)} • ${Number(chosen.minute||0)}'`;
+    editPanel.style.display="block";
     removeBtn.disabled=false;
+    saveEditBtn.disabled=false;
   }else{
     details.textContent=events.length?"Select an event from the dropdown above.":"No events have been recorded for this match.";
+    editPanel.style.display="none";
     removeBtn.disabled=true;
+    saveEditBtn.disabled=true;
   }
 
   list.innerHTML=events.length?events.map(e=>{
     const p=data.players.find(x=>x.id===e.playerId);
     return `<div class="managed-event">
       <div class="managed-event-minute">${Number(e.minute||0)}'</div>
-      <div><div class="managed-event-type">${eventIcon(e.type)} ${e.type}</div><div class="muted">${p?.name||"Unknown player"}${e.type==="Own Goal"?` <span class="og-tag">OG</span>`:""} • ${teamName(p?.teamId)}</div></div>
+      <div><div class="managed-event-type">${eventIcon(e.type)} ${e.type}</div><div class="muted">${p?.name||"Unknown player"}${e.type==="Own Goal"?` <span class="og-tag">OG</span>`:""} • ${teamName(e.teamId||p?.teamId)}</div></div>
       <button class="delete-event-btn" type="button" data-event-id="${e.id}">Remove</button>
     </div>`;
   }).join(""):`<div class="muted" style="padding:10px 0">No events recorded for this match.</div>`;
 }
+async function saveEventChanges(){
+  if(!isAdmin)return openLogin();
+  const event=selectedManagedEvent();
+  if(!event)return alert("Select an event to edit.");
+  const match=data.fixtures.find(f=>f.id===event.matchId);
+  const player=data.players.find(p=>String(p.id)===String(document.querySelector("#editEventPlayer")?.value));
+  const type=document.querySelector("#editEventType")?.value;
+  const minute=Number(document.querySelector("#editEventMinute")?.value||0);
+  if(!match||!player)return alert("Select a valid player and match.");
+  const eventTeamId=playerTeamForMatch(player,match,event);
+  if(!eventTeamId)return alert("The selected player is not associated with either team in this match.");
+
+  const oldSnapshot={...event};
+  adjustScoreForEvent(oldSnapshot,-1);
+  event.playerId=player.id;
+  event.teamId=eventTeamId;
+  event.type=type;
+  event.minute=minute;
+  event.updatedAtMs=Date.now();
+  adjustScoreForEvent(event,1);
+
+  try{
+    await save();
+    flash();
+    render();
+    const selector=document.querySelector("#manageEventEntry");
+    if(selector)selector.value=event.id;
+    renderEventManager();
+  }catch(err){
+    adjustScoreForEvent(event,-1);
+    Object.assign(event,oldSnapshot);
+    adjustScoreForEvent(event,1);
+    alert(err.message);
+  }
+}
+
 async function removeEvent(eventId){
   if(!isAdmin)return openLogin();
   const event=data.events.find(e=>String(e.id)===String(eventId));
@@ -687,13 +796,7 @@ async function removeEvent(eventId){
   const p=data.players.find(x=>x.id===event.playerId);
   const description=`${event.type}${p?` for ${p.name}`:""} at ${Number(event.minute||0)}'`;
   if(!confirm(`Remove ${description}?`))return;
-  if(event.type==="Own Goal"){
-    const match=data.fixtures.find(f=>f.id===event.matchId);
-    const player=data.players.find(p=>p.id===event.playerId);
-    const playerTeamId=event.teamId || player?.teamId;
-    if(match && playerTeamId===match.home)match.awayScore=Math.max(0,Number(match.awayScore||0)-1);
-    else if(match && playerTeamId===match.away)match.homeScore=Math.max(0,Number(match.homeScore||0)-1);
-  }
+  adjustScoreForEvent(event,-1);
   data.events=data.events.filter(e=>String(e.id)!==String(eventId));
   try{await save();flash();renderEventManager();}catch(err){alert(err.message);}
 }
@@ -801,8 +904,7 @@ function fillSelects(){
     manageTeam.innerHTML=teamOptions;
     manageTeam.value=data.teams.some(t=>t.id===current)?current:(data.teams[0]?.id||"");
   }
-  const eventPlayer=document.querySelector("#eventPlayer");
-  if(eventPlayer)eventPlayer.innerHTML=data.players.filter(p=>p.active!==false).map(p=>`<option value="${p.id}">${p.name} — ${teamName(p.teamId)}</option>`).join("");
+  refreshEventPlayerOptions();
 }
 document.querySelector("#tabs").addEventListener("click",e=>{
   if(!e.target.dataset.tab)return;
@@ -814,9 +916,22 @@ document.querySelector("#resultForm").addEventListener("submit",async e=>{
   f.homeScore=Number(document.querySelector("#homeScore").value); f.awayScore=Number(document.querySelector("#awayScore").value); f.status="finished"; f.startedAtMs=null; f.finishedAtMs=Date.now();
   try{await save();flash();e.target.reset();}catch(err){alert(err.message);}
 });
+document.querySelector("#eventMatch").addEventListener("change",()=>{
+  pendingGoalTeamId="";
+  refreshEventPlayerOptions("");
+});
 document.querySelector("#eventType").addEventListener("change",e=>{
+  if(e.target.value!=="Goal")pendingGoalTeamId="";
+  refreshEventPlayerOptions();
   const help=document.querySelector("#ownGoalHelp");
-  if(help)help.style.display=e.target.value==="Own Goal"?"block":"none";
+  if(!help)return;
+  if(e.target.value==="Own Goal"){
+    help.style.display="block";
+    help.textContent="For an own goal, choose the player who scored against their own team. The opposing team's live score will increase automatically.";
+  }else if(e.target.value==="Goal"){
+    help.style.display=pendingGoalTeamId?"block":"none";
+    if(pendingGoalTeamId)help.innerHTML=`Select the scorer for <strong>${teamName(pendingGoalTeamId)}</strong>, then click <strong>Add event</strong>. The live score will increase automatically.`;
+  }else help.style.display="none";
 });
 document.querySelector("#eventForm").addEventListener("submit",async e=>{
   e.preventDefault(); if(!isAdmin)return openLogin();
@@ -827,17 +942,29 @@ document.querySelector("#eventForm").addEventListener("submit",async e=>{
   const selectedPlayer=data.players.find(p=>p.id===document.querySelector("#eventPlayer").value);
   const autoMinute=eventMatch && ["live","paused","halftime"].includes(normalizedStatus(eventMatch)) ? Math.floor(elapsedSeconds(eventMatch)/60) : 0;
   const eventType=document.querySelector("#eventType").value;
-  data.events.push({id:"E"+Date.now(),matchId,playerId:document.querySelector("#eventPlayer").value,teamId:selectedPlayer?.teamId||"",
-    type:eventType,minute:minuteInput===""?autoMinute:Number(minuteInput),createdAtMs:Date.now()});
-  if(eventType==="Own Goal" && eventMatch){
-    if(selectedPlayer?.teamId===eventMatch.home)eventMatch.awayScore=Number(eventMatch.awayScore||0)+1;
-    else if(selectedPlayer?.teamId===eventMatch.away)eventMatch.homeScore=Number(eventMatch.homeScore||0)+1;
+  if(!eventMatch)return alert("Select a valid match.");
+  const playerTeamId=selectedPlayer?.teamId||"";
+  if(![eventMatch.home,eventMatch.away].includes(playerTeamId))return alert("The selected player is not on either team in this match.");
+  if(eventType==="Goal" && pendingGoalTeamId && playerTeamId!==pendingGoalTeamId)return alert(`Select a scorer from ${teamName(pendingGoalTeamId)}.`);
+  const newEvent={id:"E"+Date.now(),matchId,playerId:document.querySelector("#eventPlayer").value,teamId:playerTeamId,
+    type:eventType,minute:minuteInput===""?autoMinute:Number(minuteInput),createdAtMs:Date.now()};
+  data.events.push(newEvent);
+  if(eventType==="Goal"){
+    if(playerTeamId===eventMatch.home)eventMatch.homeScore=Number(eventMatch.homeScore||0)+1;
+    else if(playerTeamId===eventMatch.away)eventMatch.awayScore=Number(eventMatch.awayScore||0)+1;
+  }else if(eventType==="Own Goal"){
+    if(playerTeamId===eventMatch.home)eventMatch.awayScore=Number(eventMatch.awayScore||0)+1;
+    else if(playerTeamId===eventMatch.away)eventMatch.homeScore=Number(eventMatch.homeScore||0)+1;
   }
-  try{await save();flash();e.target.reset();}catch(err){alert(err.message);}
+  try{
+    await save();flash();e.target.reset();pendingGoalTeamId="";fillSelects();
+    const help=document.querySelector("#ownGoalHelp");if(help)help.style.display="none";
+  }catch(err){alert(err.message);}
 });
 
 document.querySelector("#manageEventMatch").addEventListener("change",renderEventManager);
 document.querySelector("#manageEventEntry").addEventListener("change",renderEventManager);
+document.querySelector("#saveEventChangesBtn").addEventListener("click",saveEventChanges);
 document.querySelector("#removeSelectedEventBtn").addEventListener("click",()=>{
   const event=selectedManagedEvent();
   if(event)removeEvent(event.id);
@@ -901,8 +1028,24 @@ document.querySelector("#endMatchBtn").addEventListener("click",()=>{
   if(!confirm("End this match and finalize the result?"))return;
   updateControlledMatch(f=>{f.elapsedSeconds=elapsedSeconds(f);f.startedAtMs=null;f.status="finished";f.phase="fullTime";f.finishedAtMs=Date.now();});
 });
-document.querySelector("#homeGoalBtn").addEventListener("click",()=>updateControlledMatch(f=>{f.homeScore=Number(f.homeScore||0)+1;}));
-document.querySelector("#awayGoalBtn").addEventListener("click",()=>updateControlledMatch(f=>{f.awayScore=Number(f.awayScore||0)+1;}));
+document.querySelector("#resetCompletedMatchBtn").addEventListener("click",async ()=>{
+  if(!isAdmin)return openLogin();
+  const f=selectedControlMatch();
+  if(!f || normalizedStatus(f)!=="finished")return alert("Select a completed match first.");
+  const relatedEvents=data.events.filter(e=>e.matchId===f.id);
+  const warning=relatedEvents.length
+    ? `Reset ${teamName(f.home)} vs ${teamName(f.away)}? This will clear this match's score, timer, and ${relatedEvents.length} recorded event(s), but it will not affect other matches.`
+    : `Reset ${teamName(f.home)} vs ${teamName(f.away)}? This will clear this match's score and timer, but it will not affect other matches.`;
+  if(!confirm(warning))return;
+  data.events=data.events.filter(e=>e.matchId!==f.id);
+  Object.assign(f,{
+    homeScore:null,awayScore:null,status:"scheduled",phase:"scheduled",
+    startedAtMs:null,finishedAtMs:null,halfTimeAtMs:null,secondHalfStartedAtMs:null,elapsedSeconds:0
+  });
+  try{await save();flash();render();}catch(err){alert(err.message);}
+});
+document.querySelector("#homeGoalBtn").addEventListener("click",()=>{const f=selectedControlMatch();if(f)prepareGoalEvent(f.home);});
+document.querySelector("#awayGoalBtn").addEventListener("click",()=>{const f=selectedControlMatch();if(f)prepareGoalEvent(f.away);});
 setInterval(()=>{
   const f=activeMatch();
   if(f){

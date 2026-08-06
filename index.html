@@ -277,9 +277,9 @@
           <div id="controlClock" class="match-clock" style="margin:0">00:00</div>
         </div>
         <div class="quick-score">
-          <div class="quick-team"><span id="controlHomeName">Home</span><button id="homeGoalBtn" class="btn" type="button">+ Home Goal</button></div>
+          <div class="quick-team"><span id="controlHomeName">Home</span><button id="homeGoalBtn" class="btn" type="button">+ Record Home Goal</button></div>
           <div class="live-score" id="controlScore">0–0</div>
-          <div class="quick-team"><span id="controlAwayName">Away</span><button id="awayGoalBtn" class="btn" type="button">+ Away Goal</button></div>
+          <div class="quick-team"><span id="controlAwayName">Away</span><button id="awayGoalBtn" class="btn" type="button">+ Record Away Goal</button></div>
         </div>
         <div class="control-actions">
           <button id="startMatchBtn" class="btn success" type="button">Start Match</button>
@@ -287,6 +287,7 @@
           <button id="pauseMatchBtn" class="btn warning" type="button">Pause</button>
           <button id="resumeMatchBtn" class="btn secondary" type="button">Resume</button>
           <button id="endMatchBtn" class="btn danger" type="button">End Match</button>
+          <button id="resetCompletedMatchBtn" class="btn danger" type="button">Reset Completed Match</button>
         </div>
         <label class="setting-toggle"><input id="liveStandingsToggle" type="checkbox" checked> <span><strong>Update standings during live matches</strong><small>Public table includes the current live score and shows a LIVE TABLE notice.</small></span></label>
 
@@ -315,7 +316,18 @@
             <label>Recorded event<select id="manageEventEntry"></select></label>
           </div>
           <div id="manageEventDetails" class="muted" style="padding:12px 0">Select an event to view its details.</div>
-          <button id="removeSelectedEventBtn" class="btn danger" type="button" style="width:100%" disabled>Remove selected event</button>
+          <div id="editEventPanel" class="event-edit-panel" style="display:none">
+            <h4 style="margin:0 0 10px">Edit selected event</h4>
+            <div class="row">
+              <label>Player<select id="editEventPlayer"></select></label>
+              <label>Event<select id="editEventType">
+                <option>Goal</option><option>Own Goal</option><option>Assist</option><option>Yellow Card</option><option>Red Card</option><option>Player of the Match</option>
+              </select></label>
+            </div>
+            <label>Minute<input id="editEventMinute" type="number" min="0" max="120"></label>
+            <button id="saveEventChangesBtn" class="btn secondary" type="button" style="width:100%;margin-top:10px">Save event changes</button>
+          </div>
+          <button id="removeSelectedEventBtn" class="btn danger" type="button" style="width:100%;margin-top:10px" disabled>Remove selected event</button>
           <div id="manageEventList" style="margin-top:12px"></div>
         </div>
       </div>
@@ -372,7 +384,7 @@
     </section>
   </main>
 
-  <footer>Intra Squad Sunday League v3.2.0 • Persistent Teams, Own Goals & Safer Editing powered by Firebase</footer>
+  <footer>Intra Squad Sunday League v3.2.3 • Event-Linked Live Scoring powered by Firebase</footer>
 </div>
 
 <div id="loginModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="loginTitle">

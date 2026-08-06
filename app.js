@@ -469,11 +469,9 @@ function render(){
     const status=f.status || (Number.isInteger(f.homeScore)&&Number.isInteger(f.awayScore)?"finished":"scheduled");
     const hasScore=Number.isInteger(f.homeScore)&&Number.isInteger(f.awayScore);
     const label=status==="live"?"🔴 LIVE":status==="paused"?"Paused":status==="finished"?"Full Time":"Scheduled";
-    const homeScorers=status==="finished"?teamScorersHtml(f,f.home,"left"):"";
-    const awayScorers=status==="finished"?teamScorersHtml(f,f.away,"right"):"";
-    return `<div class="match"><div>${logoHtml(f.home)}<strong>${teamName(f.home)}</strong><div class="muted">Week ${f.week}</div>${homeScorers}</div>
-      <div class="score">${hasScore?`${f.homeScore}–${f.awayScore}`:"vs"}<div class="badge">${label}</div></div>
-      <div class="team-right"><strong>${teamName(f.away)}</strong>${logoHtml(f.away)}<div class="muted">${f.date||""}${f.time?` • ${f.time}`:""}${f.venue?`<br>${f.venue}`:""}</div>${awayScorers}</div></div>`;
+    return `<div class="match"><div>${logoHtml(f.home)}<strong>${teamName(f.home)}</strong><div class="muted">Week ${f.week}</div></div>
+      <div class="score">${hasScore?`${f.homeScore}–${f.awayScore}`:"VS"}<div class="badge">${label}</div></div>
+      <div class="team-right"><strong>${teamName(f.away)}</strong>${logoHtml(f.away)}<div class="muted">${f.date||""}${f.time?` • ${f.time}`:""}${f.venue?`<br>${f.venue}`:""}</div></div></div>`;
   }).join("");
 
   document.querySelector("#standingsBody").innerHTML=st.map((x,i)=>`<tr class="${i===0?"rank1":i===1?"rank2":i===2?"rank3":""}">
@@ -506,6 +504,7 @@ function render(){
   fillSelects();
   renderLiveMatch();
   renderControlCenter();
+  renderEventManager();
 }
 
 function normalizedStatus(f){
@@ -587,9 +586,37 @@ async function updateControlledMatch(mutator){
   try{await save();flash();}catch(err){alert(err.message);}
 }
 
+function managedEventMatchId(){
+  const el=document.querySelector("#manageEventMatch");
+  return el?.value || data.fixtures[0]?.id || "";
+}
+function renderEventManager(){
+  const list=document.querySelector("#manageEventList");
+  if(!list)return;
+  const events=matchEvents(managedEventMatchId());
+  list.innerHTML=events.length?events.map(e=>{
+    const p=data.players.find(x=>x.id===e.playerId);
+    return `<div class="managed-event">
+      <div class="managed-event-minute">${Number(e.minute||0)}'</div>
+      <div><div class="managed-event-type">${eventIcon(e.type)} ${e.type}</div><div class="muted">${p?.name||"Unknown player"} • ${teamName(p?.teamId)}</div></div>
+      <button class="delete-event-btn" type="button" data-event-id="${e.id}">Remove</button>
+    </div>`;
+  }).join(""):`<div class="muted" style="padding:10px 0">No events recorded for this match.</div>`;
+}
+async function removeEvent(eventId){
+  if(!isAdmin)return openLogin();
+  const event=data.events.find(e=>e.id===eventId);
+  if(!event)return;
+  const p=data.players.find(x=>x.id===event.playerId);
+  const description=`${event.type}${p?` for ${p.name}`:""} at ${Number(event.minute||0)}'`;
+  if(!confirm(`Remove ${description}?`))return;
+  data.events=data.events.filter(e=>e.id!==eventId);
+  try{await save();flash();}catch(err){alert(err.message);}
+}
+
 function fillSelects(){
   const openMatches=data.fixtures;
-  ["resultMatch","eventMatch","controlMatch"].forEach(id=>{
+  ["resultMatch","eventMatch","controlMatch","manageEventMatch"].forEach(id=>{
     const el=document.querySelector("#"+id), current=el.value;
     el.innerHTML=openMatches.map(f=>`<option value="${f.id}">${f.id}: ${teamName(f.home)} vs ${teamName(f.away)}</option>`).join("");
     if([...el.options].some(o=>o.value===current))el.value=current;
@@ -624,6 +651,12 @@ document.querySelector("#eventForm").addEventListener("submit",async e=>{
   data.events.push({id:"E"+Date.now(),matchId,playerId:document.querySelector("#eventPlayer").value,
     type:document.querySelector("#eventType").value,minute:minuteInput===""?autoMinute:Number(minuteInput),createdAtMs:Date.now()});
   try{await save();flash();e.target.reset();}catch(err){alert(err.message);}
+});
+
+document.querySelector("#manageEventMatch").addEventListener("change",renderEventManager);
+document.querySelector("#manageEventList").addEventListener("click",e=>{
+  const btn=e.target.closest("[data-event-id]");
+  if(btn)removeEvent(btn.dataset.eventId);
 });
 
 document.querySelector("#controlMatch").addEventListener("change",renderControlCenter);

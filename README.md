@@ -28,3 +28,17 @@ Adds a Firebase-synced Live Match Center and admin League Control Center with st
 - Running timer and live score
 - Goal scorers list and full event timeline
 - Event minute auto-filled from live clock when left blank
+
+
+## Version 3.1.6
+- Optional live standings during active or paused matches
+- Public LIVE TABLE notice with current score and timer
+- Admin toggle in League Control Center
+
+
+## Version 3.1.7 - Half Time
+- Admin Half Time button in League Control Center
+- Match clock pauses at half time
+- Public Home live card, Fixtures, and Control Center show HALF TIME
+- Resume button changes to Start Second Half
+- Live standings continue to include the half-time score

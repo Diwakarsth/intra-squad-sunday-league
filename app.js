@@ -352,7 +352,8 @@ const seed = {
     "awayScore": null
   }
 ],
-  events: []
+  events: [],
+  settings: { liveStandings: true }
 };
 
 let data = structuredClone(seed);
@@ -379,7 +380,8 @@ function startLiveData(){
         events: (Array.isArray(remote.events) ? remote.events : []).map((event,index)=>({
           ...event,
           id: event.id || `LEGACY-${event.matchId||"MATCH"}-${event.createdAtMs||event.minute||0}-${index}`
-        }))
+        })),
+        settings: { liveStandings: remote.settings?.liveStandings !== false }
       };
       setStatus(isAdmin ? "Admin connected • Live data synced" : "Live public data connected");
       render();
@@ -419,7 +421,11 @@ function activateTab(tabId){
 
 function standings(){
   const s = Object.fromEntries(data.teams.map(t=>[t.id,{team:t,p:0,w:0,d:0,l:0,gf:0,ga:0,gd:0,pts:0}]));
-  data.fixtures.filter(f=>f.id!=="F1" && Number.isInteger(f.homeScore) && Number.isInteger(f.awayScore) && (!f.status || f.status==="finished")).forEach(f=>{
+  data.fixtures.filter(f=>{
+    if(f.id==="F1" || !Number.isInteger(f.homeScore) || !Number.isInteger(f.awayScore)) return false;
+    const status=normalizedStatus(f);
+    return status==="finished" || (data.settings?.liveStandings!==false && ["live","paused","halftime"].includes(status));
+  }).forEach(f=>{
     const h=s[f.home], a=s[f.away]; h.p++;a.p++; h.gf+=f.homeScore;h.ga+=f.awayScore; a.gf+=f.awayScore;a.ga+=f.homeScore;
     if(f.homeScore>f.awayScore){h.w++;a.l++;h.pts+=3}
     else if(f.homeScore<f.awayScore){a.w++;h.l++;a.pts+=3}
@@ -437,6 +443,19 @@ function statsFor(playerId){
     potm:e.filter(x=>x.type==="Player of the Match").length
   }
 }
+function renderLiveTableNotice(){
+  const tableNotice=document.querySelector("#liveTableNotice");
+  if(!tableNotice)return;
+  const liveForTable=activeMatch();
+  if(liveForTable && data.settings?.liveStandings!==false){
+    tableNotice.style.display="block";
+    tableNotice.innerHTML=`<strong>🔴 LIVE TABLE</strong><div>Based on ${teamName(liveForTable.home)} ${liveForTable.homeScore??0}–${liveForTable.awayScore??0} ${teamName(liveForTable.away)} • ${formatClock(elapsedSeconds(liveForTable))}</div>`;
+  }else{
+    tableNotice.style.display="none";
+    tableNotice.innerHTML="";
+  }
+}
+
 function render(){
   const st=standings();
   const played=data.fixtures.filter(f=>Number.isInteger(f.homeScore)&&Number.isInteger(f.awayScore)&&(!f.status||f.status==="finished"));
@@ -453,7 +472,7 @@ function render(){
     </div>`:
     `No completed match yet.`;
 
-  const next=data.fixtures.find(f=>f.status!=="finished" && f.status!=="live" && f.status!=="paused");
+  const next=data.fixtures.find(f=>f.status!=="finished" && f.status!=="live" && f.status!=="paused" && f.status!=="halftime");
   document.querySelector("#nextFixture").innerHTML=next?
     `<strong>${teamName(next.home)} vs ${teamName(next.away)}</strong><div class="muted">Week ${next.week}${next.date?` • ${next.date}`:""}${next.time?` • ${next.time}`:""}${next.venue?`<br>${next.venue}`:""}</div>`:
     `All matches completed.`;
@@ -471,17 +490,19 @@ function render(){
   document.querySelector("#fixtureList").innerHTML=data.fixtures.map(f=>{
     const status=f.status || (Number.isInteger(f.homeScore)&&Number.isInteger(f.awayScore)?"finished":"scheduled");
     const hasScore=Number.isInteger(f.homeScore)&&Number.isInteger(f.awayScore);
-    const label=status==="live"?"🔴 LIVE":status==="paused"?"Paused":status==="finished"?"Full Time":"Scheduled";
+    const label=status==="live"?"🔴 LIVE":status==="halftime"?"Half Time":status==="paused"?"Paused":status==="finished"?"Full Time":"Scheduled";
     return `<div class="match"><div>${logoHtml(f.home)}<strong>${teamName(f.home)}</strong><div class="muted">Week ${f.week}</div></div>
       <div class="score">${hasScore?`${f.homeScore}–${f.awayScore}`:"VS"}<div class="badge">${label}</div></div>
       <div class="team-right"><strong>${teamName(f.away)}</strong>${logoHtml(f.away)}<div class="muted">${f.date||""}${f.time?` • ${f.time}`:""}${f.venue?`<br>${f.venue}`:""}</div></div></div>`;
   }).join("");
 
+  renderLiveTableNotice();
+
   document.querySelector("#standingsBody").innerHTML=st.map((x,i)=>`<tr class="${i===0?"rank1":i===1?"rank2":i===2?"rank3":""}">
     <td>${i+1}</td><td>${logoHtml(x.team.id)}<strong>${x.team.name}</strong></td><td>${x.p}</td><td>${x.w}</td><td>${x.d}</td><td>${x.l}</td><td>${x.gf}</td><td>${x.ga}</td><td>${x.gd}</td><td><strong>${x.pts}</strong></td></tr>`).join("");
 
   document.querySelector("#teamCards").innerHTML=data.teams.map(t=>{
-    const ps=data.players.filter(p=>p.teamId===t.id);
+    const ps=data.players.filter(p=>p.teamId===t.id && p.active!==false);
     const media=TEAM_MEDIA[t.id] || {};
     const captain=ps.find(p=>p.captain);
     return `<article class="card team-card" style="--team-color:${t.color}">
@@ -501,13 +522,16 @@ function render(){
   }).join("");
 
   document.querySelector("#playerList").innerHTML=scorers.length?scorers.map(p=>
-    `<div class="player-row"><span><strong>${p.name}</strong><div class="muted">${teamName(p.teamId)}${p.captain?" • Captain":""}${p.position?` • ${p.position}`:""}${p.number?` • #${p.number}`:""}</div></span>
+    `<div class="player-row"><span><strong>${p.name}</strong>${p.active===false?`<span class="inactive-tag">Former player</span>`:""}<div class="muted">${teamName(p.teamId)}${p.captain?" • Captain":""}${p.position?` • ${p.position}`:""}${p.number?` • #${p.number}`:""}</div></span>
     <span class="muted">G ${p.goals} • A ${p.assists} • YC ${p.yellow} • RC ${p.red} • POTM ${p.potm}</span></div>`).join(""):`<div class="muted">No players added yet.</div>`;
 
   fillSelects();
   renderLiveMatch();
   renderControlCenter();
   renderEventManager();
+  renderTeamManager();
+  const liveStandingsToggle=document.querySelector("#liveStandingsToggle");
+  if(liveStandingsToggle) liveStandingsToggle.checked=data.settings?.liveStandings!==false;
 }
 
 function normalizedStatus(f){
@@ -522,7 +546,7 @@ function formatClock(seconds){
   const s=Math.max(0,Math.floor(seconds));
   return `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
 }
-function activeMatch(){return data.fixtures.find(f=>["live","paused"].includes(normalizedStatus(f)));}
+function activeMatch(){return data.fixtures.find(f=>["live","paused","halftime"].includes(normalizedStatus(f)));}
 function matchEvents(matchId){return data.events.filter(e=>e.matchId===matchId).sort((a,b)=>(a.minute||0)-(b.minute||0)||(a.createdAtMs||0)-(b.createdAtMs||0));}
 function eventIcon(type){return {"Goal":"⚽","Assist":"🎯","Yellow Card":"🟨","Red Card":"🟥","Player of the Match":"⭐"}[type]||"•";}
 
@@ -545,8 +569,8 @@ function renderLiveMatch(){
   const panel=document.querySelector("#liveMatchPanel"); if(!panel)return;
   const f=activeMatch(); panel.classList.toggle("visible",Boolean(f)); if(!f)return;
   const status=normalizedStatus(f);
-  panel.classList.toggle("paused",status==="paused");
-  document.querySelector("#liveStatusLabel").textContent=status==="paused"?"PAUSED":"LIVE";
+  panel.classList.toggle("paused",status==="paused" || status==="halftime");
+  document.querySelector("#liveStatusLabel").textContent=status==="halftime"?"HALF TIME":status==="paused"?"PAUSED":"LIVE";
   document.querySelector("#liveHomeName").textContent=teamName(f.home);
   document.querySelector("#liveAwayName").textContent=teamName(f.away);
   document.querySelector("#liveScore").textContent=`${Number(f.homeScore||0)}–${Number(f.awayScore||0)}`;
@@ -569,18 +593,20 @@ function renderControlCenter(){
   const f=selectedControlMatch(); if(!f)return;
   const status=normalizedStatus(f);
   document.querySelector("#controlMatchName").textContent=`${teamName(f.home)} vs ${teamName(f.away)}`;
-  const text=status==="live"?"🔴 LIVE":status==="paused"?"Paused":status==="finished"?"Full Time":"Scheduled";
-  const st=document.querySelector("#controlStatusText"); st.textContent=text; st.className=`${status==="live"?"status-live":status==="paused"?"status-paused":status==="finished"?"status-finished":"muted"}`;
+  const text=status==="live"?"🔴 LIVE":status==="halftime"?"Half Time":status==="paused"?"Paused":status==="finished"?"Full Time":"Scheduled";
+  const st=document.querySelector("#controlStatusText"); st.textContent=text; st.className=`${status==="live"?"status-live":status==="halftime"?"status-halftime":status==="paused"?"status-paused":status==="finished"?"status-finished":"muted"}`;
   document.querySelector("#controlHomeName").textContent=teamName(f.home);
   document.querySelector("#controlAwayName").textContent=teamName(f.away);
   document.querySelector("#controlScore").textContent=`${Number(f.homeScore||0)}–${Number(f.awayScore||0)}`;
   document.querySelector("#controlClock").textContent=formatClock(elapsedSeconds(f));
   document.querySelector("#startMatchBtn").disabled=status!=="scheduled";
+  document.querySelector("#halfTimeBtn").disabled=status!=="live";
   document.querySelector("#pauseMatchBtn").disabled=status!=="live";
-  document.querySelector("#resumeMatchBtn").disabled=status!=="paused";
-  document.querySelector("#endMatchBtn").disabled=!["live","paused"].includes(status);
-  document.querySelector("#homeGoalBtn").disabled=!["live","paused"].includes(status);
-  document.querySelector("#awayGoalBtn").disabled=!["live","paused"].includes(status);
+  document.querySelector("#resumeMatchBtn").disabled=!["paused","halftime"].includes(status);
+  document.querySelector("#resumeMatchBtn").textContent=status==="halftime"?"Start Second Half":"Resume";
+  document.querySelector("#endMatchBtn").disabled=!["live","paused","halftime"].includes(status);
+  document.querySelector("#homeGoalBtn").disabled=status!=="live";
+  document.querySelector("#awayGoalBtn").disabled=status!=="live";
 }
 async function updateControlledMatch(mutator){
   if(!isAdmin)return openLogin();
@@ -647,6 +673,32 @@ async function removeEvent(eventId){
   try{await save();flash();renderEventManager();}catch(err){alert(err.message);}
 }
 
+function selectedManagedTeamId(){
+  return document.querySelector("#managePlayerTeam")?.value || data.teams?.[0]?.id || "";
+}
+function renderTeamManager(){
+  const teamSelect=document.querySelector("#managePlayerTeam");
+  const list=document.querySelector("#managePlayerList");
+  if(!teamSelect||!list)return;
+  const teamId=selectedManagedTeamId();
+  const players=data.players.filter(p=>p.teamId===teamId && p.active!==false);
+  list.innerHTML=players.length?players.map(p=>`<div class="team-manager-player">
+    <div><strong>${p.name}</strong>${p.captain?`<span class="captain-tag">Captain</span>`:""}<div class="muted">Historical statistics will be preserved.</div></div>
+    <button class="btn danger remove-player-btn" type="button" data-player-id="${p.id}">Remove from team</button>
+  </div>`).join(""):`<div class="muted" style="padding:12px">No active players on this team.</div>`;
+}
+async function removePlayerFromTeam(playerId){
+  if(!isAdmin)return openLogin();
+  const player=data.players.find(p=>String(p.id)===String(playerId));
+  if(!player)return alert("Player not found. Refresh the page and try again.");
+  const stats=statsFor(player.id);
+  const summary=`${stats.goals} goal${stats.goals===1?"":"s"}, ${stats.assists} assist${stats.assists===1?"":"s"}, ${stats.yellow} yellow card${stats.yellow===1?"":"s"}, ${stats.red} red card${stats.red===1?"":"s"}, ${stats.potm} Player of the Match award${stats.potm===1?"":"s"}`;
+  if(!confirm(`Remove ${player.name} from ${teamName(player.teamId)}?\n\nTheir historical statistics will remain: ${summary}.`))return;
+  player.active=false;
+  player.removedAtMs=Date.now();
+  try{await save();flash();renderTeamManager();}catch(err){alert(err.message);}
+}
+
 function fillSelects(){
   const openMatches=Array.isArray(data.fixtures)?data.fixtures:[];
   ["resultMatch","eventMatch","controlMatch","manageEventMatch"].forEach(id=>{
@@ -658,7 +710,9 @@ function fillSelects(){
   });
   const teamOptions=data.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join("");
   document.querySelector("#playerTeam").innerHTML=teamOptions;
-  document.querySelector("#eventPlayer").innerHTML=data.players.map(p=>`<option value="${p.id}">${p.name} — ${teamName(p.teamId)}</option>`).join("");
+  const manageTeam=document.querySelector("#managePlayerTeam");
+  if(manageTeam){const current=manageTeam.value;manageTeam.innerHTML=teamOptions;if([...manageTeam.options].some(o=>o.value===current))manageTeam.value=current;}
+  document.querySelector("#eventPlayer").innerHTML=data.players.filter(p=>p.active!==false).map(p=>`<option value="${p.id}">${p.name} — ${teamName(p.teamId)}</option>`).join("");
 }
 document.querySelector("#tabs").addEventListener("click",e=>{
   if(!e.target.dataset.tab)return;
@@ -673,7 +727,7 @@ document.querySelector("#resultForm").addEventListener("submit",async e=>{
 document.querySelector("#playerForm").addEventListener("submit",async e=>{
   e.preventDefault(); if(!isAdmin)return openLogin();
   data.players.push({id:"P"+Date.now(),name:document.querySelector("#playerName").value.trim(),teamId:document.querySelector("#playerTeam").value,
-    position:document.querySelector("#playerPosition").value.trim(),number:document.querySelector("#playerNumber").value});
+    position:document.querySelector("#playerPosition").value.trim(),number:document.querySelector("#playerNumber").value,active:true});
   try{await save();flash();e.target.reset();}catch(err){alert(err.message);}
 });
 document.querySelector("#eventForm").addEventListener("submit",async e=>{
@@ -699,16 +753,35 @@ document.querySelector("#manageEventList").addEventListener("click",e=>{
   if(btn)removeEvent(btn.dataset.eventId);
 });
 
+
+document.querySelector("#managePlayerTeam").addEventListener("change",renderTeamManager);
+document.querySelector("#managePlayerList").addEventListener("click",e=>{
+  const btn=e.target.closest("[data-player-id]");
+  if(btn)removePlayerFromTeam(btn.dataset.playerId);
+});
+
+
+document.querySelector("#liveStandingsToggle").addEventListener("change",async e=>{
+  if(!isAdmin){e.target.checked=data.settings?.liveStandings!==false;return openLogin();}
+  data.settings={...(data.settings||{}),liveStandings:e.target.checked};
+  try{await save();flash();}catch(err){e.target.checked=!e.target.checked;alert(err.message);}
+});
+
 document.querySelector("#controlMatch").addEventListener("change",renderControlCenter);
 document.querySelector("#startMatchBtn").addEventListener("click",()=>updateControlledMatch(f=>{
   f.status="live"; f.homeScore=Number.isInteger(f.homeScore)?f.homeScore:0; f.awayScore=Number.isInteger(f.awayScore)?f.awayScore:0;
   f.elapsedSeconds=Number(f.elapsedSeconds||0); f.startedAtMs=Date.now(); f.finishedAtMs=null;
 }));
+document.querySelector("#halfTimeBtn").addEventListener("click",()=>updateControlledMatch(f=>{
+  f.elapsedSeconds=elapsedSeconds(f); f.startedAtMs=null; f.status="halftime"; f.halfTimeAtMs=Date.now();
+}));
 document.querySelector("#pauseMatchBtn").addEventListener("click",()=>updateControlledMatch(f=>{
   f.elapsedSeconds=elapsedSeconds(f); f.startedAtMs=null; f.status="paused";
 }));
 document.querySelector("#resumeMatchBtn").addEventListener("click",()=>updateControlledMatch(f=>{
+  const wasHalfTime=normalizedStatus(f)==="halftime";
   f.startedAtMs=Date.now(); f.status="live";
+  if(wasHalfTime){f.secondHalfStartedAtMs=Date.now(); f.halfTimeAtMs=f.halfTimeAtMs||Date.now();}
 }));
 document.querySelector("#endMatchBtn").addEventListener("click",()=>{
   if(!confirm("End this match and finalize the result?"))return;
@@ -722,6 +795,7 @@ setInterval(()=>{
     const lc=document.querySelector("#liveClock"); if(lc)lc.textContent=formatClock(elapsedSeconds(f));
   }
   const cf=selectedControlMatch(); const cc=document.querySelector("#controlClock"); if(cf&&cc)cc.textContent=formatClock(elapsedSeconds(cf));
+  renderLiveTableNotice();
 },1000);
 
 document.querySelector("#resetBtn").addEventListener("click",async ()=>{
@@ -776,3 +850,4 @@ if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
 render();
 updateAuthUI();
 startLiveData();
+

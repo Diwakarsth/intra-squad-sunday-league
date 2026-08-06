@@ -416,7 +416,7 @@ function activateTab(tabId){
 
 function standings(){
   const s = Object.fromEntries(data.teams.map(t=>[t.id,{team:t,p:0,w:0,d:0,l:0,gf:0,ga:0,gd:0,pts:0}]));
-  data.fixtures.filter(f=>f.id!=="F1" && Number.isInteger(f.homeScore) && Number.isInteger(f.awayScore)).forEach(f=>{
+  data.fixtures.filter(f=>f.id!=="F1" && Number.isInteger(f.homeScore) && Number.isInteger(f.awayScore) && (!f.status || f.status==="finished")).forEach(f=>{
     const h=s[f.home], a=s[f.away]; h.p++;a.p++; h.gf+=f.homeScore;h.ga+=f.awayScore; a.gf+=f.awayScore;a.ga+=f.homeScore;
     if(f.homeScore>f.awayScore){h.w++;a.l++;h.pts+=3}
     else if(f.homeScore<f.awayScore){a.w++;h.l++;a.pts+=3}
@@ -436,7 +436,7 @@ function statsFor(playerId){
 }
 function render(){
   const st=standings();
-  const played=data.fixtures.filter(f=>Number.isInteger(f.homeScore)&&Number.isInteger(f.awayScore));
+  const played=data.fixtures.filter(f=>Number.isInteger(f.homeScore)&&Number.isInteger(f.awayScore)&&(!f.status||f.status==="finished"));
   document.querySelector("#kpiMatches").textContent=played.length;
   document.querySelector("#kpiGoals").textContent=played.reduce((n,f)=>n+f.homeScore+f.awayScore,0);
   document.querySelector("#kpiLeader").textContent=st[0]?.team.name||"—";
@@ -446,7 +446,7 @@ function render(){
     `<strong>${teamName(latest.home)} ${latest.homeScore}–${latest.awayScore} ${teamName(latest.away)}</strong><div class="muted">Week ${latest.week}</div>`:
     `No completed match yet.`;
 
-  const next=data.fixtures.find(f=>f.homeScore===null||f.awayScore===null);
+  const next=data.fixtures.find(f=>f.status!=="finished" && f.status!=="live" && f.status!=="paused");
   document.querySelector("#nextFixture").innerHTML=next?
     `<strong>${teamName(next.home)} vs ${teamName(next.away)}</strong><div class="muted">Week ${next.week}${next.date?` • ${next.date}`:""}${next.time?` • ${next.time}`:""}${next.venue?`<br>${next.venue}`:""}</div>`:
     `All matches completed.`;
@@ -462,9 +462,11 @@ function render(){
   }).join(""):`<div class="muted">No goals have been recorded. Admin can add goals from the Admin tab.</div>`;
 
   document.querySelector("#fixtureList").innerHTML=data.fixtures.map(f=>{
-    const done=Number.isInteger(f.homeScore)&&Number.isInteger(f.awayScore);
+    const status=f.status || (Number.isInteger(f.homeScore)&&Number.isInteger(f.awayScore)?"finished":"scheduled");
+    const hasScore=Number.isInteger(f.homeScore)&&Number.isInteger(f.awayScore);
+    const label=status==="live"?"🔴 LIVE":status==="paused"?"Paused":status==="finished"?"Full Time":"Scheduled";
     return `<div class="match"><div>${logoHtml(f.home)}<strong>${teamName(f.home)}</strong><div class="muted">Week ${f.week}</div></div>
-      <div class="score">${done?`${f.homeScore}–${f.awayScore}`:"vs"}<div class="badge">${done?"Final":"Scheduled"}</div></div>
+      <div class="score">${hasScore?`${f.homeScore}–${f.awayScore}`:"vs"}<div class="badge">${label}</div></div>
       <div class="team-right"><strong>${teamName(f.away)}</strong>${logoHtml(f.away)}<div class="muted">${f.date||""}${f.time?` • ${f.time}`:""}${f.venue?`<br>${f.venue}`:""}</div></div></div>`;
   }).join("");
 
@@ -496,10 +498,67 @@ function render(){
     <span class="muted">G ${p.goals} • A ${p.assists} • YC ${p.yellow} • RC ${p.red} • POTM ${p.potm}</span></div>`).join(""):`<div class="muted">No players added yet.</div>`;
 
   fillSelects();
+  renderLiveMatch();
+  renderControlCenter();
 }
+
+function normalizedStatus(f){
+  return f.status || (Number.isInteger(f.homeScore)&&Number.isInteger(f.awayScore)?"finished":"scheduled");
+}
+function elapsedSeconds(f){
+  let total=Number(f.elapsedSeconds||0);
+  if(normalizedStatus(f)==="live" && f.startedAtMs) total += Math.max(0,Math.floor((Date.now()-Number(f.startedAtMs))/1000));
+  return total;
+}
+function formatClock(seconds){
+  const s=Math.max(0,Math.floor(seconds));
+  return `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
+}
+function activeMatch(){return data.fixtures.find(f=>["live","paused"].includes(normalizedStatus(f)));}
+function matchEvents(matchId){return data.events.filter(e=>e.matchId===matchId).sort((a,b)=>(a.minute||0)-(b.minute||0)||(a.createdAtMs||0)-(b.createdAtMs||0));}
+function eventIcon(type){return {"Goal":"⚽","Assist":"🎯","Yellow Card":"🟨","Red Card":"🟥","Player of the Match":"⭐"}[type]||"•";}
+function renderLiveMatch(){
+  const panel=document.querySelector("#liveMatchPanel"); if(!panel)return;
+  const f=activeMatch(); panel.classList.toggle("visible",Boolean(f)); if(!f)return;
+  document.querySelector("#liveHomeName").textContent=teamName(f.home);
+  document.querySelector("#liveAwayName").textContent=teamName(f.away);
+  document.querySelector("#liveScore").textContent=`${Number(f.homeScore||0)}–${Number(f.awayScore||0)}`;
+  document.querySelector("#liveMatchWeek").textContent=`Week ${f.week} • ${f.venue||""}`;
+  document.querySelector("#liveClock").textContent=formatClock(elapsedSeconds(f));
+  const timeline=matchEvents(f.id);
+  document.querySelector("#liveTimeline").innerHTML=timeline.length?timeline.map(e=>{
+    const p=data.players.find(x=>x.id===e.playerId);
+    return `<div class="timeline-item"><strong>${e.minute||0}'</strong><span>${eventIcon(e.type)} ${e.type}${p?` — ${p.name}`:""}</span></div>`;
+  }).join(""):`<div class="muted">Live match events will appear here.</div>`;
+}
+function selectedControlMatch(){const id=document.querySelector("#controlMatch")?.value;return data.fixtures.find(f=>f.id===id)||data.fixtures[0];}
+function renderControlCenter(){
+  const f=selectedControlMatch(); if(!f)return;
+  const status=normalizedStatus(f);
+  document.querySelector("#controlMatchName").textContent=`${teamName(f.home)} vs ${teamName(f.away)}`;
+  const text=status==="live"?"🔴 LIVE":status==="paused"?"Paused":status==="finished"?"Full Time":"Scheduled";
+  const st=document.querySelector("#controlStatusText"); st.textContent=text; st.className=`${status==="live"?"status-live":status==="paused"?"status-paused":status==="finished"?"status-finished":"muted"}`;
+  document.querySelector("#controlHomeName").textContent=teamName(f.home);
+  document.querySelector("#controlAwayName").textContent=teamName(f.away);
+  document.querySelector("#controlScore").textContent=`${Number(f.homeScore||0)}–${Number(f.awayScore||0)}`;
+  document.querySelector("#controlClock").textContent=formatClock(elapsedSeconds(f));
+  document.querySelector("#startMatchBtn").disabled=status!=="scheduled";
+  document.querySelector("#pauseMatchBtn").disabled=status!=="live";
+  document.querySelector("#resumeMatchBtn").disabled=status!=="paused";
+  document.querySelector("#endMatchBtn").disabled=!["live","paused"].includes(status);
+  document.querySelector("#homeGoalBtn").disabled=!["live","paused"].includes(status);
+  document.querySelector("#awayGoalBtn").disabled=!["live","paused"].includes(status);
+}
+async function updateControlledMatch(mutator){
+  if(!isAdmin)return openLogin();
+  const f=selectedControlMatch(); if(!f)return;
+  mutator(f);
+  try{await save();flash();}catch(err){alert(err.message);}
+}
+
 function fillSelects(){
   const openMatches=data.fixtures;
-  ["resultMatch","eventMatch"].forEach(id=>{
+  ["resultMatch","eventMatch","controlMatch"].forEach(id=>{
     const el=document.querySelector("#"+id), current=el.value;
     el.innerHTML=openMatches.map(f=>`<option value="${f.id}">${f.id}: ${teamName(f.home)} vs ${teamName(f.away)}</option>`).join("");
     if([...el.options].some(o=>o.value===current))el.value=current;
@@ -515,7 +574,7 @@ document.querySelector("#tabs").addEventListener("click",e=>{
 });
 document.querySelector("#resultForm").addEventListener("submit",async e=>{
   e.preventDefault(); if(!isAdmin)return openLogin(); const f=data.fixtures.find(x=>x.id===document.querySelector("#resultMatch").value);
-  f.homeScore=Number(document.querySelector("#homeScore").value); f.awayScore=Number(document.querySelector("#awayScore").value);
+  f.homeScore=Number(document.querySelector("#homeScore").value); f.awayScore=Number(document.querySelector("#awayScore").value); f.status="finished"; f.startedAtMs=null; f.finishedAtMs=Date.now();
   try{await save();flash();e.target.reset();}catch(err){alert(err.message);}
 });
 document.querySelector("#playerForm").addEventListener("submit",async e=>{
@@ -528,9 +587,35 @@ document.querySelector("#eventForm").addEventListener("submit",async e=>{
   e.preventDefault(); if(!isAdmin)return openLogin();
   if(!document.querySelector("#eventPlayer").value)return alert("Add a player first.");
   data.events.push({id:"E"+Date.now(),matchId:document.querySelector("#eventMatch").value,playerId:document.querySelector("#eventPlayer").value,
-    type:document.querySelector("#eventType").value,minute:Number(document.querySelector("#eventMinute").value||0)});
+    type:document.querySelector("#eventType").value,minute:Number(document.querySelector("#eventMinute").value||0),createdAtMs:Date.now()});
   try{await save();flash();e.target.reset();}catch(err){alert(err.message);}
 });
+
+document.querySelector("#controlMatch").addEventListener("change",renderControlCenter);
+document.querySelector("#startMatchBtn").addEventListener("click",()=>updateControlledMatch(f=>{
+  f.status="live"; f.homeScore=Number.isInteger(f.homeScore)?f.homeScore:0; f.awayScore=Number.isInteger(f.awayScore)?f.awayScore:0;
+  f.elapsedSeconds=Number(f.elapsedSeconds||0); f.startedAtMs=Date.now(); f.finishedAtMs=null;
+}));
+document.querySelector("#pauseMatchBtn").addEventListener("click",()=>updateControlledMatch(f=>{
+  f.elapsedSeconds=elapsedSeconds(f); f.startedAtMs=null; f.status="paused";
+}));
+document.querySelector("#resumeMatchBtn").addEventListener("click",()=>updateControlledMatch(f=>{
+  f.startedAtMs=Date.now(); f.status="live";
+}));
+document.querySelector("#endMatchBtn").addEventListener("click",()=>{
+  if(!confirm("End this match and finalize the result?"))return;
+  updateControlledMatch(f=>{f.elapsedSeconds=elapsedSeconds(f);f.startedAtMs=null;f.status="finished";f.finishedAtMs=Date.now();});
+});
+document.querySelector("#homeGoalBtn").addEventListener("click",()=>updateControlledMatch(f=>{f.homeScore=Number(f.homeScore||0)+1;}));
+document.querySelector("#awayGoalBtn").addEventListener("click",()=>updateControlledMatch(f=>{f.awayScore=Number(f.awayScore||0)+1;}));
+setInterval(()=>{
+  const f=activeMatch();
+  if(f){
+    const lc=document.querySelector("#liveClock"); if(lc)lc.textContent=formatClock(elapsedSeconds(f));
+  }
+  const cf=selectedControlMatch(); const cc=document.querySelector("#controlClock"); if(cf&&cc)cc.textContent=formatClock(elapsedSeconds(cf));
+},1000);
+
 document.querySelector("#resetBtn").addEventListener("click",async ()=>{
   if(!isAdmin)return openLogin();
   if(confirm("Reset all live league data for every user?")){data=structuredClone(seed);try{await save();flash();}catch(err){alert(err.message);}}

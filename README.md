@@ -17,3 +17,7 @@ Public league app hosted on GitHub Pages with live shared data in Cloud Firestor
 
 ## Deployment
 Upload all extracted files to the root of the GitHub repository. Do not upload only the ZIP. Wait for GitHub Pages to deploy, then test in an Incognito window.
+
+
+## Version 3.1
+Adds a Firebase-synced Live Match Center and admin League Control Center with start, pause, resume, live scoring, clock, event timeline, and full-time finalization.

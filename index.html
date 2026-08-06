@@ -105,7 +105,10 @@
     .live-team{font-weight:900;font-size:18px}
     .live-score{font-size:38px;font-weight:1000;color:var(--navy);white-space:nowrap}
     .match-clock{font-variant-numeric:tabular-nums;font-size:22px;font-weight:900;color:#c62828;text-align:center;margin-top:10px}
-    .timeline{margin-top:14px;border-top:1px solid var(--border);padding-top:8px}
+    .live-scorers{margin-top:14px;background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:12px}.live-scorers h3,.timeline h3{margin:0 0 8px;font-size:15px;color:var(--navy)}
+    .goal-scorer-item{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--border);font-size:14px}.goal-scorer-item:last-child{border-bottom:0}.goal-side{font-size:11px;font-weight:900;color:var(--blue);text-transform:uppercase}
+    .live-panel.paused{border-color:#b7791f}.live-panel.paused .live-badge{background:#b7791f}.live-panel.paused .match-clock{color:#b7791f}.live-panel.paused .live-dot{animation:none}
+    .timeline{margin-top:14px;border-top:1px solid var(--border);padding-top:12px}
     .timeline-item{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
     .timeline-item:last-child{border-bottom:0}
     .control-center{border:2px solid var(--navy);background:linear-gradient(180deg,#f7faff,#fff)}
@@ -163,14 +166,18 @@
   <main>
     <section id="home" class="active">
       <div id="liveMatchPanel" class="card live-panel">
-        <div class="live-head"><span class="live-badge"><span class="live-dot"></span>LIVE</span><span id="liveMatchWeek" class="muted"></span></div>
+        <div class="live-head"><span id="liveStatusBadge" class="live-badge"><span class="live-dot"></span><span id="liveStatusLabel">LIVE</span></span><span id="liveMatchWeek" class="muted"></span></div>
         <div class="live-scoreboard">
           <div class="live-team" id="liveHomeName">Home</div>
           <div class="live-score" id="liveScore">0–0</div>
           <div class="live-team" id="liveAwayName">Away</div>
         </div>
         <div id="liveClock" class="match-clock">00:00</div>
-        <div id="liveTimeline" class="timeline"></div>
+        <div class="live-scorers">
+          <h3>Goal scorers</h3>
+          <div id="liveGoalScorers" class="muted">No goals yet.</div>
+        </div>
+        <div class="timeline"><h3>Live timeline</h3><div id="liveTimeline"></div></div>
       </div>
       <div class="grid cards-2">
         <div class="card">
@@ -293,7 +300,7 @@
     </section>
   </main>
 
-  <footer>Intra Squad Sunday League v3.1 • Live Match Center powered by Firebase</footer>
+  <footer>Intra Squad Sunday League v3.1.1 • Live Match Center powered by Firebase</footer>
 </div>
 
 <div id="loginModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="loginTitle">

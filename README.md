@@ -21,3 +21,10 @@ Upload all extracted files to the root of the GitHub repository. Do not upload o
 
 ## Version 3.1
 Adds a Firebase-synced Live Match Center and admin League Control Center with start, pause, resume, live scoring, clock, event timeline, and full-time finalization.
+
+
+## Version 3.1.1
+- Home page live game card with LIVE/PAUSED state
+- Running timer and live score
+- Goal scorers list and full event timeline
+- Event minute auto-filled from live clock when left blank

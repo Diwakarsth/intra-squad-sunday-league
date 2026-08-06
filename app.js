@@ -520,12 +520,21 @@ function eventIcon(type){return {"Goal":"⚽","Assist":"🎯","Yellow Card":"�
 function renderLiveMatch(){
   const panel=document.querySelector("#liveMatchPanel"); if(!panel)return;
   const f=activeMatch(); panel.classList.toggle("visible",Boolean(f)); if(!f)return;
+  const status=normalizedStatus(f);
+  panel.classList.toggle("paused",status==="paused");
+  document.querySelector("#liveStatusLabel").textContent=status==="paused"?"PAUSED":"LIVE";
   document.querySelector("#liveHomeName").textContent=teamName(f.home);
   document.querySelector("#liveAwayName").textContent=teamName(f.away);
   document.querySelector("#liveScore").textContent=`${Number(f.homeScore||0)}–${Number(f.awayScore||0)}`;
   document.querySelector("#liveMatchWeek").textContent=`Week ${f.week} • ${f.venue||""}`;
   document.querySelector("#liveClock").textContent=formatClock(elapsedSeconds(f));
   const timeline=matchEvents(f.id);
+  const goals=timeline.filter(e=>e.type==="Goal");
+  document.querySelector("#liveGoalScorers").innerHTML=goals.length?goals.map(e=>{
+    const p=data.players.find(x=>x.id===e.playerId);
+    const side=p?.teamId===f.home?"Home":p?.teamId===f.away?"Away":"";
+    return `<div class="goal-scorer-item"><span>⚽ <strong>${p?.name||"Unknown player"}</strong></span><span><strong>${e.minute||0}'</strong>${side?` <span class="goal-side">${side}</span>`:""}</span></div>`;
+  }).join(""):`<div class="muted">No goals yet.</div>`;
   document.querySelector("#liveTimeline").innerHTML=timeline.length?timeline.map(e=>{
     const p=data.players.find(x=>x.id===e.playerId);
     return `<div class="timeline-item"><strong>${e.minute||0}'</strong><span>${eventIcon(e.type)} ${e.type}${p?` — ${p.name}`:""}</span></div>`;
@@ -586,8 +595,12 @@ document.querySelector("#playerForm").addEventListener("submit",async e=>{
 document.querySelector("#eventForm").addEventListener("submit",async e=>{
   e.preventDefault(); if(!isAdmin)return openLogin();
   if(!document.querySelector("#eventPlayer").value)return alert("Add a player first.");
-  data.events.push({id:"E"+Date.now(),matchId:document.querySelector("#eventMatch").value,playerId:document.querySelector("#eventPlayer").value,
-    type:document.querySelector("#eventType").value,minute:Number(document.querySelector("#eventMinute").value||0),createdAtMs:Date.now()});
+  const matchId=document.querySelector("#eventMatch").value;
+  const eventMatch=data.fixtures.find(f=>f.id===matchId);
+  const minuteInput=document.querySelector("#eventMinute").value;
+  const autoMinute=eventMatch && ["live","paused"].includes(normalizedStatus(eventMatch)) ? Math.floor(elapsedSeconds(eventMatch)/60) : 0;
+  data.events.push({id:"E"+Date.now(),matchId,playerId:document.querySelector("#eventPlayer").value,
+    type:document.querySelector("#eventType").value,minute:minuteInput===""?autoMinute:Number(minuteInput),createdAtMs:Date.now()});
   try{await save();flash();e.target.reset();}catch(err){alert(err.message);}
 });
 

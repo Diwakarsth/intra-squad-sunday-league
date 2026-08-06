@@ -422,15 +422,13 @@ function activateTab(tabId){
 function standings(){
   const s = Object.fromEntries(data.teams.map(t=>[t.id,{team:t,p:0,w:0,d:0,l:0,gf:0,ga:0,gd:0,pts:0}]));
   data.fixtures.filter(f=>{
-    if(f.id==="F1" || !hasScore(f) || !s[f.home] || !s[f.away]) return false;
+    if(f.id==="F1" || !Number.isInteger(f.homeScore) || !Number.isInteger(f.awayScore)) return false;
     const status=normalizedStatus(f);
     return status==="finished" || (data.settings?.liveStandings!==false && ["live","paused","halftime"].includes(status));
   }).forEach(f=>{
-    const homeScore=Number(f.homeScore), awayScore=Number(f.awayScore);
-    const h=s[f.home], a=s[f.away];
-    h.p++;a.p++; h.gf+=homeScore;h.ga+=awayScore; a.gf+=awayScore;a.ga+=homeScore;
-    if(homeScore>awayScore){h.w++;a.l++;h.pts+=3}
-    else if(homeScore<awayScore){a.w++;h.l++;a.pts+=3}
+    const h=s[f.home], a=s[f.away]; h.p++;a.p++; h.gf+=f.homeScore;h.ga+=f.awayScore; a.gf+=f.awayScore;a.ga+=f.homeScore;
+    if(f.homeScore>f.awayScore){h.w++;a.l++;h.pts+=3}
+    else if(f.homeScore<f.awayScore){a.w++;h.l++;a.pts+=3}
     else{h.d++;a.d++;h.pts++;a.pts++}
   });
   return Object.values(s).map(x=>({...x,gd:x.gf-x.ga})).sort((a,b)=>b.pts-a.pts||b.gd-a.gd||b.gf-a.gf||a.team.name.localeCompare(b.team.name));
@@ -460,7 +458,7 @@ function renderLiveTableNotice(){
 
 function render(){
   const st=standings();
-  const played=data.fixtures.filter(f=>hasScore(f)&&normalizedStatus(f)==="finished");
+  const played=data.fixtures.filter(f=>Number.isInteger(f.homeScore)&&Number.isInteger(f.awayScore)&&(!f.status||f.status==="finished"));
   document.querySelector("#kpiMatches").textContent=played.length;
   document.querySelector("#kpiGoals").textContent=played.reduce((n,f)=>n+f.homeScore+f.awayScore,0);
   document.querySelector("#kpiLeader").textContent=st[0]?.team.name||"—";
@@ -536,11 +534,8 @@ function render(){
   if(liveStandingsToggle) liveStandingsToggle.checked=data.settings?.liveStandings!==false;
 }
 
-function hasScore(f){
-  return Number.isFinite(Number(f?.homeScore)) && Number.isFinite(Number(f?.awayScore));
-}
 function normalizedStatus(f){
-  return f.status || (hasScore(f)?"finished":"scheduled");
+  return f.status || (Number.isInteger(f.homeScore)&&Number.isInteger(f.awayScore)?"finished":"scheduled");
 }
 function elapsedSeconds(f){
   let total=Number(f.elapsedSeconds||0);
@@ -559,7 +554,7 @@ function goalEventsForTeam(matchId, teamId){
   return matchEvents(matchId).filter(e=>{
     if(e.type!=="Goal")return false;
     const p=data.players.find(x=>x.id===e.playerId);
-    return (e.teamId || p?.teamId)===teamId;
+    return p?.teamId===teamId;
   });
 }
 function teamScorersHtml(f, teamId, align="left"){
@@ -617,7 +612,6 @@ async function updateControlledMatch(mutator){
   if(!isAdmin)return openLogin();
   const f=selectedControlMatch(); if(!f)return;
   mutator(f);
-  render();
   try{await save();flash();}catch(err){alert(err.message);}
 }
 
@@ -682,85 +676,27 @@ async function removeEvent(eventId){
 function selectedManagedTeamId(){
   return document.querySelector("#managePlayerTeam")?.value || data.teams?.[0]?.id || "";
 }
-function activePlayersForTeam(teamId){
-  return data.players.filter(p=>p.teamId===teamId && p.active!==false).sort((a,b)=>a.name.localeCompare(b.name));
-}
-function selectedManagedPlayer(){
-  const id=document.querySelector("#managePlayerSelect")?.value;
-  return data.players.find(p=>String(p.id)===String(id));
-}
 function renderTeamManager(){
   const teamSelect=document.querySelector("#managePlayerTeam");
-  const playerSelect=document.querySelector("#managePlayerSelect");
-  const actionSelect=document.querySelector("#managePlayerAction");
-  const destinationSelect=document.querySelector("#transferPlayerTeam");
-  const destinationLabel=document.querySelector("#transferTeamLabel");
-  const applyBtn=document.querySelector("#applyPlayerManagementBtn");
-  const summary=document.querySelector("#managePlayerSummary");
-  if(!teamSelect||!playerSelect||!actionSelect||!destinationSelect||!destinationLabel||!applyBtn||!summary)return;
-
+  const list=document.querySelector("#managePlayerList");
+  if(!teamSelect||!list)return;
   const teamId=selectedManagedTeamId();
-  const players=activePlayersForTeam(teamId);
-  const previousPlayer=playerSelect.value;
-  playerSelect.innerHTML=players.length
-    ? `<option value="">Select a player</option>${players.map(p=>`<option value="${p.id}">${p.name}${p.captain?" (Captain)":""}</option>`).join("")}`
-    : `<option value="">No active players on this team</option>`;
-  if(players.some(p=>String(p.id)===String(previousPlayer)))playerSelect.value=previousPlayer;
-
-  const action=actionSelect.value || "remove";
-  const isTransfer=action==="transfer";
-  destinationLabel.style.display=isTransfer?"block":"none";
-  const previousDestination=destinationSelect.value;
-  const destinations=data.teams.filter(t=>t.id!==teamId);
-  destinationSelect.innerHTML=destinations.map(t=>`<option value="${t.id}">${t.name}</option>`).join("");
-  if(destinations.some(t=>t.id===previousDestination))destinationSelect.value=previousDestination;
-
-  const player=selectedManagedPlayer();
-  applyBtn.disabled=!player || (isTransfer && !destinationSelect.value);
-  applyBtn.textContent=isTransfer?"Transfer selected player":"Remove selected player";
-  if(!player){
-    summary.textContent=players.length?"Choose a player, then remove or transfer them.":"No active players are registered on this team.";
-    return;
-  }
-  const stats=statsFor(player.id);
-  summary.innerHTML=`<strong>${player.name}</strong> • ${stats.goals} goal${stats.goals===1?"":"s"}, ${stats.assists} assist${stats.assists===1?"":"s"}, ${stats.yellow} yellow, ${stats.red} red, ${stats.potm} POTM. Historical records will be preserved.`;
+  const players=data.players.filter(p=>p.teamId===teamId && p.active!==false);
+  list.innerHTML=players.length?players.map(p=>`<div class="team-manager-player">
+    <div><strong>${p.name}</strong>${p.captain?`<span class="captain-tag">Captain</span>`:""}<div class="muted">Historical statistics will be preserved.</div></div>
+    <button class="btn danger remove-player-btn" type="button" data-player-id="${p.id}">Remove from team</button>
+  </div>`).join(""):`<div class="muted" style="padding:12px">No active players on this team.</div>`;
 }
-function preservePlayerEventTeam(playerId, oldTeamId){
-  data.events=data.events.map(e=>String(e.playerId)===String(playerId) && !e.teamId ? {...e,teamId:oldTeamId} : e);
-}
-async function applyPlayerManagement(){
+async function removePlayerFromTeam(playerId){
   if(!isAdmin)return openLogin();
-  const player=selectedManagedPlayer();
-  if(!player)return alert("Select a player first.");
-  const action=document.querySelector("#managePlayerAction").value;
-  const oldTeamId=player.teamId;
-  preservePlayerEventTeam(player.id,oldTeamId);
-
-  if(action==="transfer"){
-    const newTeamId=document.querySelector("#transferPlayerTeam").value;
-    if(!newTeamId || newTeamId===oldTeamId)return alert("Choose a different destination team.");
-    if(!confirm(`Transfer ${player.name} from ${teamName(oldTeamId)} to ${teamName(newTeamId)}?
-
-All previous match history will remain with ${teamName(oldTeamId)}.`))return;
-    player.teamId=newTeamId;
-    player.active=true;
-    player.captain=false;
-    player.transferredAtMs=Date.now();
-    player.previousTeamId=oldTeamId;
-  }else{
-    const stats=statsFor(player.id);
-    const summary=`${stats.goals} goal${stats.goals===1?"":"s"}, ${stats.assists} assist${stats.assists===1?"":"s"}, ${stats.yellow} yellow card${stats.yellow===1?"":"s"}, ${stats.red} red card${stats.red===1?"":"s"}, ${stats.potm} Player of the Match award${stats.potm===1?"":"s"}`;
-    if(!confirm(`Remove ${player.name} from ${teamName(oldTeamId)}?
-
-Their historical statistics will remain: ${summary}.`))return;
-    player.active=false;
-    player.removedAtMs=Date.now();
-  }
-  try{
-    render();
-    await save();
-    flash();
-  }catch(err){alert(err.message);}
+  const player=data.players.find(p=>String(p.id)===String(playerId));
+  if(!player)return alert("Player not found. Refresh the page and try again.");
+  const stats=statsFor(player.id);
+  const summary=`${stats.goals} goal${stats.goals===1?"":"s"}, ${stats.assists} assist${stats.assists===1?"":"s"}, ${stats.yellow} yellow card${stats.yellow===1?"":"s"}, ${stats.red} red card${stats.red===1?"":"s"}, ${stats.potm} Player of the Match award${stats.potm===1?"":"s"}`;
+  if(!confirm(`Remove ${player.name} from ${teamName(player.teamId)}?\n\nTheir historical statistics will remain: ${summary}.`))return;
+  player.active=false;
+  player.removedAtMs=Date.now();
+  try{await save();flash();renderTeamManager();}catch(err){alert(err.message);}
 }
 
 function fillSelects(){
@@ -775,13 +711,8 @@ function fillSelects(){
   const teamOptions=data.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join("");
   document.querySelector("#playerTeam").innerHTML=teamOptions;
   const manageTeam=document.querySelector("#managePlayerTeam");
-  if(manageTeam){
-    const current=manageTeam.value;
-    manageTeam.innerHTML=teamOptions;
-    manageTeam.value=data.teams.some(t=>t.id===current)?current:(data.teams[0]?.id||"");
-  }
-  const eventPlayer=document.querySelector("#eventPlayer");
-  if(eventPlayer)eventPlayer.innerHTML=data.players.filter(p=>p.active!==false).map(p=>`<option value="${p.id}">${p.name} — ${teamName(p.teamId)}</option>`).join("");
+  if(manageTeam){const current=manageTeam.value;manageTeam.innerHTML=teamOptions;if([...manageTeam.options].some(o=>o.value===current))manageTeam.value=current;}
+  document.querySelector("#eventPlayer").innerHTML=data.players.filter(p=>p.active!==false).map(p=>`<option value="${p.id}">${p.name} — ${teamName(p.teamId)}</option>`).join("");
 }
 document.querySelector("#tabs").addEventListener("click",e=>{
   if(!e.target.dataset.tab)return;
@@ -805,9 +736,8 @@ document.querySelector("#eventForm").addEventListener("submit",async e=>{
   const matchId=document.querySelector("#eventMatch").value;
   const eventMatch=data.fixtures.find(f=>f.id===matchId);
   const minuteInput=document.querySelector("#eventMinute").value;
-  const selectedPlayer=data.players.find(p=>p.id===document.querySelector("#eventPlayer").value);
-  const autoMinute=eventMatch && ["live","paused","halftime"].includes(normalizedStatus(eventMatch)) ? Math.floor(elapsedSeconds(eventMatch)/60) : 0;
-  data.events.push({id:"E"+Date.now(),matchId,playerId:document.querySelector("#eventPlayer").value,teamId:selectedPlayer?.teamId||"",
+  const autoMinute=eventMatch && ["live","paused"].includes(normalizedStatus(eventMatch)) ? Math.floor(elapsedSeconds(eventMatch)/60) : 0;
+  data.events.push({id:"E"+Date.now(),matchId,playerId:document.querySelector("#eventPlayer").value,
     type:document.querySelector("#eventType").value,minute:minuteInput===""?autoMinute:Number(minuteInput),createdAtMs:Date.now()});
   try{await save();flash();e.target.reset();}catch(err){alert(err.message);}
 });
@@ -825,12 +755,9 @@ document.querySelector("#manageEventList").addEventListener("click",e=>{
 
 
 document.querySelector("#managePlayerTeam").addEventListener("change",renderTeamManager);
-document.querySelector("#managePlayerSelect").addEventListener("change",renderTeamManager);
-document.querySelector("#managePlayerAction").addEventListener("change",renderTeamManager);
-document.querySelector("#transferPlayerTeam").addEventListener("change",renderTeamManager);
-document.querySelector("#teamManagementForm").addEventListener("submit",async e=>{
-  e.preventDefault();
-  await applyPlayerManagement();
+document.querySelector("#managePlayerList").addEventListener("click",e=>{
+  const btn=e.target.closest("[data-player-id]");
+  if(btn)removePlayerFromTeam(btn.dataset.playerId);
 });
 
 
@@ -842,40 +769,23 @@ document.querySelector("#liveStandingsToggle").addEventListener("change",async e
 
 document.querySelector("#controlMatch").addEventListener("change",renderControlCenter);
 document.querySelector("#startMatchBtn").addEventListener("click",()=>updateControlledMatch(f=>{
-  f.status="live";
-  f.phase="firstHalf";
-  f.homeScore=hasScore(f)?Number(f.homeScore):0;
-  f.awayScore=hasScore(f)?Number(f.awayScore):0;
-  f.elapsedSeconds=0;
-  f.startedAtMs=Date.now();
-  f.finishedAtMs=null;
-  f.halfTimeAtMs=null;
-  f.secondHalfStartedAtMs=null;
+  f.status="live"; f.homeScore=Number.isInteger(f.homeScore)?f.homeScore:0; f.awayScore=Number.isInteger(f.awayScore)?f.awayScore:0;
+  f.elapsedSeconds=Number(f.elapsedSeconds||0); f.startedAtMs=Date.now(); f.finishedAtMs=null;
 }));
 document.querySelector("#halfTimeBtn").addEventListener("click",()=>updateControlledMatch(f=>{
-  if(normalizedStatus(f)!=="live")return;
-  f.elapsedSeconds=elapsedSeconds(f);
-  f.startedAtMs=null;
-  f.status="halftime";
-  f.phase="halfTime";
-  f.halfTimeAtMs=Date.now();
+  f.elapsedSeconds=elapsedSeconds(f); f.startedAtMs=null; f.status="halftime"; f.halfTimeAtMs=Date.now();
 }));
 document.querySelector("#pauseMatchBtn").addEventListener("click",()=>updateControlledMatch(f=>{
   f.elapsedSeconds=elapsedSeconds(f); f.startedAtMs=null; f.status="paused";
 }));
 document.querySelector("#resumeMatchBtn").addEventListener("click",()=>updateControlledMatch(f=>{
   const wasHalfTime=normalizedStatus(f)==="halftime";
-  f.startedAtMs=Date.now();
-  f.status="live";
-  if(wasHalfTime){
-    f.phase="secondHalf";
-    f.secondHalfStartedAtMs=Date.now();
-    f.halfTimeAtMs=f.halfTimeAtMs||Date.now();
-  }
+  f.startedAtMs=Date.now(); f.status="live";
+  if(wasHalfTime){f.secondHalfStartedAtMs=Date.now(); f.halfTimeAtMs=f.halfTimeAtMs||Date.now();}
 }));
 document.querySelector("#endMatchBtn").addEventListener("click",()=>{
   if(!confirm("End this match and finalize the result?"))return;
-  updateControlledMatch(f=>{f.elapsedSeconds=elapsedSeconds(f);f.startedAtMs=null;f.status="finished";f.phase="fullTime";f.finishedAtMs=Date.now();});
+  updateControlledMatch(f=>{f.elapsedSeconds=elapsedSeconds(f);f.startedAtMs=null;f.status="finished";f.finishedAtMs=Date.now();});
 });
 document.querySelector("#homeGoalBtn").addEventListener("click",()=>updateControlledMatch(f=>{f.homeScore=Number(f.homeScore||0)+1;}));
 document.querySelector("#awayGoalBtn").addEventListener("click",()=>updateControlledMatch(f=>{f.awayScore=Number(f.awayScore||0)+1;}));

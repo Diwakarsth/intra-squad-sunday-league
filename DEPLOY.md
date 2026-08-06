@@ -1,10 +1,8 @@
-# Deploy v3.1.8 to GitHub Pages
+# Firebase Version 3 deployment
 
-1. Extract the ZIP.
-2. Open the extracted project folder.
-3. In GitHub, choose Add file > Upload files.
-4. Upload all files from this folder, including index.html, app.js, sw.js, and image files.
-5. Commit with: `Fix Half Time, live standings, and team management`.
-6. Wait for the GitHub Pages action to finish.
-7. Open the website in an Incognito window or press Ctrl+F5.
-8. Confirm the footer shows v3.1.8.
+1. In Firebase Authentication, enable Email/Password and create `admin@intrasquadleague.com`.
+2. In Authentication > Settings > Authorized domains, add `diwakarsth.github.io`.
+3. In Firestore > Rules, paste the contents of `firestore.rules` and click Publish.
+4. Upload every extracted project file to the root of the GitHub repository and commit.
+5. Wait for GitHub Pages deployment, then open the site in an Incognito window.
+6. Sign in using the Firebase admin email/password. The first authorized login initializes `league/current` if it is empty.

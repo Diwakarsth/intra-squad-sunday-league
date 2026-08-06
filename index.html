@@ -313,9 +313,22 @@
 
       <div class="card" style="margin-top:12px">
         <h3>Team Management</h3>
-        <div class="muted">Remove a player from the current team while keeping all previous goals, assists, cards and awards.</div>
-        <label style="display:block;margin-top:12px">Team<select id="managePlayerTeam"></select></label>
-        <div id="managePlayerList" class="team-manager-list"></div>
+        <div class="muted">Remove a player from a roster or transfer a player to another team while preserving all match history.</div>
+        <form id="teamManagementForm" style="margin-top:12px">
+          <div class="row">
+            <label>Current team<select id="managePlayerTeam"></select></label>
+            <label>Player<select id="managePlayerSelect"></select></label>
+          </div>
+          <div class="row">
+            <label>Action<select id="managePlayerAction">
+              <option value="remove">Remove from team</option>
+              <option value="transfer">Transfer to another team</option>
+            </select></label>
+            <label id="transferTeamLabel" style="display:none">Transfer to<select id="transferPlayerTeam"></select></label>
+          </div>
+          <button id="applyPlayerManagementBtn" class="btn secondary" type="submit">Remove selected player</button>
+        </form>
+        <div id="managePlayerSummary" class="muted" style="margin-top:12px"></div>
       </div>
 
       <div class="card" style="margin-top:12px">
@@ -352,7 +365,7 @@
     </section>
   </main>
 
-  <footer>Intra Squad Sunday League v3.1.7 • Live Standings powered by Firebase</footer>
+  <footer>Intra Squad Sunday League v3.1.8 • Half Time, Live Standings & Team Management powered by Firebase</footer>
 </div>
 
 <div id="loginModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="loginTitle">

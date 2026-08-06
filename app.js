@@ -490,11 +490,11 @@ function render(){
   }).join(""):`<div class="muted">No goals have been recorded. Admin can add goals from the Admin tab.</div>`;
 
   document.querySelector("#fixtureList").innerHTML=data.fixtures.map(f=>{
-    const status=f.status || (Number.isInteger(f.homeScore)&&Number.isInteger(f.awayScore)?"finished":"scheduled");
-    const hasScore=Number.isInteger(f.homeScore)&&Number.isInteger(f.awayScore);
+    const status=normalizedStatus(f);
+    const matchHasScore=hasScore(f);
     const label=status==="live"?"🔴 LIVE":status==="halftime"?"Half Time":status==="paused"?"Paused":status==="finished"?"Full Time":"Scheduled";
     return `<div class="match"><div>${logoHtml(f.home)}<strong>${teamName(f.home)}</strong><div class="muted">Week ${f.week}</div></div>
-      <div class="score">${hasScore?`${f.homeScore}–${f.awayScore}`:"VS"}<div class="badge">${label}</div></div>
+      <div class="score">${matchHasScore?`${Number(f.homeScore)}–${Number(f.awayScore)}`:"VS"}<div class="badge">${label}</div></div>
       <div class="team-right"><strong>${teamName(f.away)}</strong>${logoHtml(f.away)}<div class="muted">${f.date||""}${f.time?` • ${f.time}`:""}${f.venue?`<br>${f.venue}`:""}</div></div></div>`;
   }).join("");
 
@@ -536,11 +536,17 @@ function render(){
   if(liveStandingsToggle) liveStandingsToggle.checked=data.settings?.liveStandings!==false;
 }
 
+function isRecordedScore(value){
+  return value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
+}
 function hasScore(f){
-  return Number.isFinite(Number(f?.homeScore)) && Number.isFinite(Number(f?.awayScore));
+  return Boolean(f) && isRecordedScore(f.homeScore) && isRecordedScore(f.awayScore);
 }
 function normalizedStatus(f){
-  return f.status || (hasScore(f)?"finished":"scheduled");
+  const status=String(f?.status||"").toLowerCase();
+  if(["live","paused","halftime"].includes(status)) return status;
+  if(status==="finished") return hasScore(f)?"finished":"scheduled";
+  return hasScore(f)?"finished":"scheduled";
 }
 function elapsedSeconds(f){
   let total=Number(f.elapsedSeconds||0);

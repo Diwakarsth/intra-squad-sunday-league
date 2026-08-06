@@ -1,4 +1,4 @@
-const C="sisl-v3.1.7";
+const C="sisl-v3.1.8";
 const ASSETS=[
   "./","./index.html","./app.js","./manifest.json","./icon.svg",
   "./Momo Strikers Logo.png","./Momo Strikers Jersey.png",

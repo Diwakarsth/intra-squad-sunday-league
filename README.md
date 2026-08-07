@@ -10,3 +10,5 @@ Firebase-powered live league website with a redesigned professional match-day in
 - Quick access cards for Live Matches, Lineups, Teams, Fixtures and Players
 - Retains Firebase Authentication, Firestore live sync, League Control Center, live timer, half time, live standings, event-linked scoring, team management, team sheets and substitutions
 - Updated mobile layout and service-worker cache
+
+Force deploy v3.3.0

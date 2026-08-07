@@ -1,3 +1,4 @@
+const APP_VERSION = "3.3.1";
 const firebaseConfig = {
   apiKey: "AIzaSyAh6B75N8AK1TmIXUz1thxzoKxToeztf08",
   authDomain: "intra-squad-sunday-league.firebaseapp.com",
@@ -1240,7 +1241,25 @@ auth.onAuthStateChanged(user=>{
   if(isAdmin && !cloudReady) setStatus("Admin connected • Connecting to live data…");
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeLogin()});
-if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js?v=3.3.1").then(reg=>{
+    reg.update().catch(()=>{});
+    reg.addEventListener("updatefound",()=>{
+      const worker=reg.installing;
+      if(!worker)return;
+      worker.addEventListener("statechange",()=>{
+        if(worker.state==="installed" && navigator.serviceWorker.controller){
+          // A newer release is ready. Reload once it takes control.
+          worker.postMessage?.({type:"SKIP_WAITING"});
+        }
+      });
+    });
+  }).catch(err=>console.warn("Service worker registration failed",err));
+  let reloading=false;
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{
+    if(reloading)return; reloading=true; location.reload();
+  });
+}
 render();
 updateAuthUI();
 startLiveData();

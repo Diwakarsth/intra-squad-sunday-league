@@ -271,6 +271,11 @@
       nav{border-radius:10px;margin-bottom:10px}nav button{padding:12px 13px}
       .hero{display:none}.home-dashboard{grid-template-columns:1fr}.quick-links{grid-template-columns:1fr 1fr}.live-score{font-size:36px}.live-team{font-size:15px}
       #home .live-panel{padding:16px 12px}.home-dashboard>.card{min-height:auto}
+      .home-standings{overflow:visible}.home-standings>div{overflow-x:auto;-webkit-overflow-scrolling:touch}
+      .home-standings table{width:100%;min-width:0;table-layout:auto;font-size:12px}
+      .home-standings th,.home-standings td{padding:9px 4px}
+      .home-standings th:nth-child(2),.home-standings td:nth-child(2){min-width:145px;white-space:normal}
+      .home-standings .mini-team-logo{width:22px;height:22px;margin-right:5px;vertical-align:middle}
     }
 
   </style>
@@ -533,7 +538,7 @@
     </section>
   </main>
 
-  <footer>© 2026 Intra Squad Sunday League • Passion. Community. Football. • v3.3.0</footer>
+  <footer>© 2026 Intra Squad Sunday League • Passion. Community. Football. • v3.3.1</footer>
 </div>
 
 <div id="loginModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
@@ -551,6 +556,33 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-<script src="app.js"></script>
+<script>
+  window.ISSL_APP_VERSION = "3.3.1";
+  // Keep installed PWAs/phones and desktop browsers on the same deployed release.
+  (async()=>{
+    try{
+      const r=await fetch(`version.json?t=${Date.now()}`,{cache:"no-store"});
+      if(r.ok){
+        const remote=await r.json();
+        const previous=localStorage.getItem("issl-app-version");
+        if(remote.version && remote.version!==window.ISSL_APP_VERSION){
+          // The HTML itself is stale. Remove old workers/caches and reload from network.
+          if("serviceWorker" in navigator){
+            const regs=await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map(reg=>reg.unregister()));
+          }
+          if("caches" in window){
+            const keys=await caches.keys();
+            await Promise.all(keys.map(k=>caches.delete(k)));
+          }
+          location.replace(`${location.pathname}?v=${encodeURIComponent(remote.version)}&t=${Date.now()}`);
+          return;
+        }
+        if(previous!==window.ISSL_APP_VERSION) localStorage.setItem("issl-app-version",window.ISSL_APP_VERSION);
+      }
+    }catch(e){ console.warn("Version check unavailable",e); }
+  })();
+</script>
+<script src="app.js?v=3.3.1"></script>
 </body>
 </html>

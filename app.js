@@ -1,4 +1,4 @@
-const APP_VERSION = "3.3.1";
+const APP_VERSION = "3.3.3";
 const firebaseConfig = {
   apiKey: "AIzaSyAh6B75N8AK1TmIXUz1thxzoKxToeztf08",
   authDomain: "intra-squad-sunday-league.firebaseapp.com",
@@ -1258,7 +1258,7 @@ auth.onAuthStateChanged(user=>{
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeLogin()});
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("sw.js?v=3.3.1").then(reg=>{
+  navigator.serviceWorker.register("sw.js?v=3.3.3").then(reg=>{
     reg.update().catch(()=>{});
     reg.addEventListener("updatefound",()=>{
       const worker=reg.installing;

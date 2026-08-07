@@ -559,7 +559,7 @@
     </section>
   </main>
 
-  <footer>© 2026 Intra Squad Sunday League • Passion. Community. Football. • v3.3.2</footer>
+  <footer>© 2026 Intra Squad Sunday League • Passion. Community. Football. • v3.3.3</footer>
 </div>
 
 <div id="loginModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
@@ -578,7 +578,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script>
-  window.ISSL_APP_VERSION = "3.3.1";
+  window.ISSL_APP_VERSION = "3.3.3";
   // Keep installed PWAs/phones and desktop browsers on the same deployed release.
   (async()=>{
     try{
@@ -587,23 +587,31 @@
         const remote=await r.json();
         const previous=localStorage.getItem("issl-app-version");
         if(remote.version && remote.version!==window.ISSL_APP_VERSION){
-          // The HTML itself is stale. Remove old workers/caches and reload from network.
-          if("serviceWorker" in navigator){
-            const regs=await navigator.serviceWorker.getRegistrations();
-            await Promise.all(regs.map(reg=>reg.unregister()));
+          // Reload at most once for a given remote version. This prevents a
+          // partial GitHub Pages deployment from causing a visible refresh loop.
+          const reloadKey="issl-reload-attempted";
+          if(sessionStorage.getItem(reloadKey)!==remote.version){
+            sessionStorage.setItem(reloadKey,remote.version);
+            if("serviceWorker" in navigator){
+              const regs=await navigator.serviceWorker.getRegistrations();
+              await Promise.all(regs.map(reg=>reg.unregister()));
+            }
+            if("caches" in window){
+              const keys=await caches.keys();
+              await Promise.all(keys.map(k=>caches.delete(k)));
+            }
+            location.replace(`${location.pathname}?v=${encodeURIComponent(remote.version)}&t=${Date.now()}`);
+            return;
           }
-          if("caches" in window){
-            const keys=await caches.keys();
-            await Promise.all(keys.map(k=>caches.delete(k)));
-          }
-          location.replace(`${location.pathname}?v=${encodeURIComponent(remote.version)}&t=${Date.now()}`);
-          return;
+          console.warn("App files are temporarily out of sync; continuing without another reload.");
+        } else {
+          sessionStorage.removeItem("issl-reload-attempted");
         }
         if(previous!==window.ISSL_APP_VERSION) localStorage.setItem("issl-app-version",window.ISSL_APP_VERSION);
       }
     }catch(e){ console.warn("Version check unavailable",e); }
   })();
 </script>
-<script src="app.js?v=3.3.1"></script>
+<script src="app.js?v=3.3.3"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-# Intra Squad Sunday League v3.3.0
+# Intra Squad Sunday League v3.3.3
 
 Firebase-powered live league website with a redesigned professional match-day interface.
 

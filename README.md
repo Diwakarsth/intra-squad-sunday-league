@@ -1,11 +1,12 @@
-# Intra Squad Sunday League v3.2.3
+# Intra Squad Sunday League v3.3.0
 
-Firebase live league app with event-linked scoring and editable match events. Goals and own goals update the score automatically; removing or editing a scoring event corrects the live score.
+Firebase-powered live league website with a redesigned professional match-day interface.
 
-
-## Version 3.2.3 changes
-- Normal and own-goal events automatically update the correct score.
-- Removing or editing a scoring event automatically corrects the score.
-- Home/Away quick goal buttons require selecting a scorer and saving a Goal event.
-- Goal, own-goal, assist, yellow-card, red-card, and Player of the Match entries can be edited.
-- A completed match can be reset individually without affecting other matches.
+## v3.3.0
+- New dark stadium-inspired Home dashboard
+- Smaller league logo integrated into the header
+- Responsive live-match hero
+- Home cards for Next Match, League Standings, Top Scorers and Latest Result
+- Quick access cards for Live Matches, Lineups, Teams, Fixtures and Players
+- Retains Firebase Authentication, Firestore live sync, League Control Center, live timer, half time, live standings, event-linked scoring, team management, team sheets and substitutions
+- Updated mobile layout and service-worker cache

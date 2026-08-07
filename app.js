@@ -15,6 +15,7 @@ const ADMIN_EMAIL = "admin@intrasquadleague.com";
 let isAdmin = false;
 let cloudReady = false;
 let unsubscribeLeague = null;
+let expandedFixtureId = "";
 
 const TEAM_MEDIA = {
   T1: {logo: "No Stamina Hustlers Logo.png", jersey: "No Stamina Hustlers Jersey.png"},
@@ -458,6 +459,81 @@ function renderLiveTableNotice(){
   }
 }
 
+function fixtureLineups(f){
+  return {
+    home: Array.isArray(f?.lineups?.home) ? f.lineups.home : [],
+    away: Array.isArray(f?.lineups?.away) ? f.lineups.away : []
+  };
+}
+function playerName(id){return data.players.find(p=>p.id===id)?.name || "Unknown player";}
+function playerCaptainForFixture(playerId,teamId){
+  const p=data.players.find(x=>x.id===playerId);
+  return p?.captain && p?.teamId===teamId;
+}
+function substitutionEvents(matchId,teamId=""){
+  return matchEvents(matchId).filter(e=>e.type==="Substitution" && (!teamId || e.teamId===teamId));
+}
+function lineupHtml(f,side){
+  const ids=fixtureLineups(f)[side];
+  const teamId=side==="home"?f.home:f.away;
+  if(!ids.length)return `<div class="muted">Lineup not submitted.</div>`;
+  return `<ul class="lineup-list">${ids.map(id=>`<li>${playerName(id)}${playerCaptainForFixture(id,teamId)?" (C)":""}</li>`).join("")}</ul>`;
+}
+function substitutionsHtml(f,teamId){
+  const subs=substitutionEvents(f.id,teamId);
+  if(!subs.length)return `<div class="muted">No substitutions.</div>`;
+  return `<div class="sub-list">${subs.map(e=>`<div class="sub-line"><strong>${Number(e.minute||0)}'</strong> <span class="sub-out">⬇ ${playerName(e.playerOutId)}</span> &nbsp; <span class="sub-in">⬆ ${playerName(e.playerInId)}</span></div>`).join("")}</div>`;
+}
+function fixtureDetailsHtml(f){
+  return `<div class="fixture-details">
+    <div class="fixture-detail-grid">
+      <div class="fixture-detail-team"><h4>${teamName(f.home)}</h4>${lineupHtml(f,"home")}${substitutionsHtml(f,f.home)}</div>
+      <div class="fixture-detail-team away"><h4>${teamName(f.away)}</h4>${lineupHtml(f,"away")}${substitutionsHtml(f,f.away)}</div>
+    </div>
+  </div>`;
+}
+function currentPlayersOnField(f,teamId){
+  const side=teamId===f.home?"home":teamId===f.away?"away":"";
+  if(!side)return [];
+  let ids=[...fixtureLineups(f)[side]];
+  substitutionEvents(f.id,teamId).forEach(e=>{
+    ids=ids.filter(id=>id!==e.playerOutId);
+    if(e.playerInId && !ids.includes(e.playerInId))ids.push(e.playerInId);
+  });
+  return ids;
+}
+function renderLineupManager(){
+  const f=selectedControlMatch();
+  const homeBox=document.querySelector("#homeLineupChoices"), awayBox=document.querySelector("#awayLineupChoices");
+  if(!f||!homeBox||!awayBox)return;
+  document.querySelector("#homeLineupTitle").textContent=teamName(f.home);
+  document.querySelector("#awayLineupTitle").textContent=teamName(f.away);
+  const lineups=fixtureLineups(f);
+  const make=(teamId,selected)=>{
+    const players=data.players.filter(p=>p.active!==false && p.teamId===teamId).sort((a,b)=>a.name.localeCompare(b.name));
+    return players.length?players.map(p=>`<label class="lineup-player"><input type="checkbox" data-lineup-player="${p.id}" data-team-id="${teamId}" ${selected.includes(p.id)?"checked":""}> <span>${p.name}${p.captain?" (C)":""}</span></label>`).join(""):`<div class="muted">No active players.</div>`;
+  };
+  homeBox.innerHTML=make(f.home,lineups.home);
+  awayBox.innerHTML=make(f.away,lineups.away);
+  renderSubstitutionOptions();
+}
+function renderSubstitutionOptions(){
+  const f=selectedControlMatch(); if(!f)return;
+  const teamSel=document.querySelector("#subTeam"), outSel=document.querySelector("#subPlayerOut"), inSel=document.querySelector("#subPlayerIn");
+  if(!teamSel||!outSel||!inSel)return;
+  const currentTeam=teamSel.value;
+  teamSel.innerHTML=`<option value="${f.home}">${teamName(f.home)}</option><option value="${f.away}">${teamName(f.away)}</option>`;
+  if([f.home,f.away].includes(currentTeam))teamSel.value=currentTeam;
+  const teamId=teamSel.value;
+  const onField=currentPlayersOnField(f,teamId);
+  const roster=data.players.filter(p=>p.active!==false && p.teamId===teamId).sort((a,b)=>a.name.localeCompare(b.name));
+  outSel.innerHTML=onField.length?`<option value="">Select player going off</option>${onField.map(id=>`<option value="${id}">${playerName(id)}</option>`).join("")}`:`<option value="">Save a lineup first</option>`;
+  const bench=roster.filter(p=>!onField.includes(p.id));
+  inSel.innerHTML=bench.length?`<option value="">Select player coming on</option>${bench.map(p=>`<option value="${p.id}">${p.name}</option>`).join("")}`:`<option value="">No available substitute</option>`;
+  const status=normalizedStatus(f);
+  document.querySelector("#recordSubBtn").disabled=!(["live","paused","halftime"].includes(status) && onField.length && bench.length);
+}
+
 function render(){
   const st=standings();
   const played=data.fixtures.filter(f=>hasScore(f)&&normalizedStatus(f)==="finished");
@@ -493,15 +569,22 @@ function render(){
     const status=normalizedStatus(f);
     const matchHasScore=hasScore(f);
     const label=status==="live"?"🔴 LIVE":status==="halftime"?"Half Time":status==="paused"?"Paused":status==="finished"?"Full Time":"Scheduled";
-    return `<div class="match"><div>${logoHtml(f.home)}<strong>${teamName(f.home)}</strong><div class="muted">Week ${f.week}</div></div>
-      <div class="score">${matchHasScore?`${Number(f.homeScore)}–${Number(f.awayScore)}`:"VS"}<div class="badge">${label}</div></div>
-      <div class="team-right"><strong>${teamName(f.away)}</strong>${logoHtml(f.away)}<div class="muted">${f.date||""}${f.time?` • ${f.time}`:""}${f.venue?`<br>${f.venue}`:""}</div></div></div>`;
+    const canOpen=["live","paused","halftime","finished"].includes(status);
+    return `<div class="match ${canOpen?"fixture-clickable":""}" ${canOpen?`data-fixture-id="${f.id}"`:""}><div>${logoHtml(f.home)}<strong>${teamName(f.home)}</strong><div class="muted">Week ${f.week}</div></div>
+      <div class="score">${matchHasScore?`${Number(f.homeScore)}–${Number(f.awayScore)}`:"VS"}<div class="badge">${label}</div>${canOpen?`<div class="fixture-details-hint">${expandedFixtureId===f.id?"Hide":"View"} lineups</div>`:""}</div>
+      <div class="team-right"><strong>${teamName(f.away)}</strong>${logoHtml(f.away)}<div class="muted">${f.date||""}${f.time?` • ${f.time}`:""}${f.venue?`<br>${f.venue}`:""}</div></div>
+      ${expandedFixtureId===f.id?fixtureDetailsHtml(f):""}</div>`;
   }).join("");
 
   renderLiveTableNotice();
 
   document.querySelector("#standingsBody").innerHTML=st.map((x,i)=>`<tr class="${i===0?"rank1":i===1?"rank2":i===2?"rank3":""}">
     <td>${i+1}</td><td>${logoHtml(x.team.id)}<strong>${x.team.name}</strong></td><td>${x.p}</td><td>${x.w}</td><td>${x.d}</td><td>${x.l}</td><td>${x.gf}</td><td>${x.ga}</td><td>${x.gd}</td><td><strong>${x.pts}</strong></td></tr>`).join("");
+
+  const homeStandingsBody=document.querySelector("#homeStandingsBody");
+  if(homeStandingsBody) homeStandingsBody.innerHTML=st.slice(0,3).map((x,i)=>`<tr><td>${i+1}</td><td>${logoHtml(x.team.id)}<strong>${x.team.name}</strong></td><td>${x.p}</td><td>${x.gd>0?"+":""}${x.gd}</td><td><strong>${x.pts}</strong></td></tr>`).join("");
+  const homeNoLive=document.querySelector("#homeNoLive");
+  if(homeNoLive) homeNoLive.style.display=activeMatch()?"none":"block";
 
   document.querySelector("#teamCards").innerHTML=data.teams.map(t=>{
     const ps=data.players.filter(p=>p.teamId===t.id && p.active!==false);
@@ -559,7 +642,7 @@ function formatClock(seconds){
 }
 function activeMatch(){return data.fixtures.find(f=>["live","paused","halftime"].includes(normalizedStatus(f)));}
 function matchEvents(matchId){return data.events.filter(e=>e.matchId===matchId).sort((a,b)=>(a.minute||0)-(b.minute||0)||(a.createdAtMs||0)-(b.createdAtMs||0));}
-function eventIcon(type){return {"Goal":"⚽","Own Goal":"⚽","Assist":"🎯","Yellow Card":"🟨","Red Card":"🟥","Player of the Match":"⭐"}[type]||"•";}
+function eventIcon(type){return {"Goal":"⚽","Own Goal":"⚽","Assist":"🎯","Yellow Card":"🟨","Red Card":"🟥","Player of the Match":"⭐","Substitution":"🔁"}[type]||"•";}
 
 let pendingGoalTeamId="";
 function eventPlayersForMatch(matchId, teamFilterId=""){
@@ -637,6 +720,7 @@ function renderLiveMatch(){
     </div>`:`<div class="muted">No goals yet.</div>`;
   document.querySelector("#liveTimeline").innerHTML=timeline.length?timeline.map(e=>{
     const p=data.players.find(x=>x.id===e.playerId);
+    if(e.type==="Substitution")return `<div class="timeline-item"><strong>${e.minute||0}'</strong><span>🔁 Substitution — <span class="sub-out">⬇ ${playerName(e.playerOutId)}</span> / <span class="sub-in">⬆ ${playerName(e.playerInId)}</span></span></div>`;
     return `<div class="timeline-item"><strong>${e.minute||0}'</strong><span>${eventIcon(e.type)} ${e.type}${p?` — ${p.name}${e.type==="Own Goal"?` <span class="og-tag">OG</span>`:""}`:""}</span></div>`;
   }).join(""):`<div class="muted">Live match events will appear here.</div>`;
 }
@@ -660,6 +744,7 @@ function renderControlCenter(){
   document.querySelector("#resetCompletedMatchBtn").disabled=status!=="finished";
   document.querySelector("#homeGoalBtn").disabled=status!=="live";
   document.querySelector("#awayGoalBtn").disabled=status!=="live";
+  renderLineupManager();
 }
 async function updateControlledMatch(mutator){
   if(!isAdmin)return openLogin();
@@ -674,6 +759,7 @@ function managedEventMatchId(){
   return el?.value || data.fixtures?.[0]?.id || "";
 }
 function eventDisplayText(e){
+  if(e.type==="Substitution")return `${Number(e.minute||0)}' • 🔁 Substitution • ${playerName(e.playerOutId)} → ${playerName(e.playerInId)}`;
   const p=data.players.find(x=>x.id===e.playerId);
   return `${Number(e.minute||0)}' • ${eventIcon(e.type)} ${e.type} • ${p?.name||"Unknown player"}`;
 }
@@ -722,21 +808,28 @@ function renderEventManager(){
   const chosen=selectedManagedEvent();
   if(chosen && match){
     const p=data.players.find(x=>x.id===chosen.playerId);
-    const eligiblePlayers=data.players.filter(player=>{
-      if(String(player.id)===String(chosen.playerId))return true;
-      return Boolean(playerTeamForMatch(player,match));
-    }).sort((a,b)=>a.name.localeCompare(b.name));
-    editPlayer.innerHTML=eligiblePlayers.map(player=>{
-      const matchTeam=playerTeamForMatch(player,match,chosen);
-      return `<option value="${player.id}">${player.name} — ${teamName(matchTeam||player.teamId)}</option>`;
-    }).join("");
-    editPlayer.value=chosen.playerId;
-    editType.value=chosen.type;
-    editMinute.value=Number(chosen.minute||0);
-    details.innerHTML=`<strong>${eventIcon(chosen.type)} ${chosen.type}</strong><br>${p?.name||"Unknown player"} • ${teamName(chosen.teamId||p?.teamId)} • ${Number(chosen.minute||0)}'`;
-    editPanel.style.display="block";
-    removeBtn.disabled=false;
-    saveEditBtn.disabled=false;
+    if(chosen.type==="Substitution") {
+      details.innerHTML=`<strong>🔁 Substitution</strong><br>${teamName(chosen.teamId)} • ${Number(chosen.minute||0)}'<br><span class="sub-out">⬇ ${playerName(chosen.playerOutId)}</span> &nbsp; <span class="sub-in">⬆ ${playerName(chosen.playerInId)}</span>`;
+      editPanel.style.display="none";
+      removeBtn.disabled=false;
+      saveEditBtn.disabled=true;
+    } else {
+      const eligiblePlayers=data.players.filter(player=>{
+        if(String(player.id)===String(chosen.playerId))return true;
+        return Boolean(playerTeamForMatch(player,match));
+      }).sort((a,b)=>a.name.localeCompare(b.name));
+      editPlayer.innerHTML=eligiblePlayers.map(player=>{
+        const matchTeam=playerTeamForMatch(player,match,chosen);
+        return `<option value="${player.id}">${player.name} — ${teamName(matchTeam||player.teamId)}</option>`;
+      }).join("");
+      editPlayer.value=chosen.playerId;
+      editType.value=chosen.type;
+      editMinute.value=Number(chosen.minute||0);
+      details.innerHTML=`<strong>${eventIcon(chosen.type)} ${chosen.type}</strong><br>${p?.name||"Unknown player"} • ${teamName(chosen.teamId||p?.teamId)} • ${Number(chosen.minute||0)}'`;
+      editPanel.style.display="block";
+      removeBtn.disabled=false;
+      saveEditBtn.disabled=false;
+    }
   }else{
     details.textContent=events.length?"Select an event from the dropdown above.":"No events have been recorded for this match.";
     editPanel.style.display="none";
@@ -746,9 +839,12 @@ function renderEventManager(){
 
   list.innerHTML=events.length?events.map(e=>{
     const p=data.players.find(x=>x.id===e.playerId);
+    const desc=e.type==="Substitution"
+      ? `<span class="sub-out">⬇ ${playerName(e.playerOutId)}</span> / <span class="sub-in">⬆ ${playerName(e.playerInId)}</span> • ${teamName(e.teamId)}`
+      : `${p?.name||"Unknown player"}${e.type==="Own Goal"?` <span class="og-tag">OG</span>`:""} • ${teamName(e.teamId||p?.teamId)}`;
     return `<div class="managed-event">
       <div class="managed-event-minute">${Number(e.minute||0)}'</div>
-      <div><div class="managed-event-type">${eventIcon(e.type)} ${e.type}</div><div class="muted">${p?.name||"Unknown player"}${e.type==="Own Goal"?` <span class="og-tag">OG</span>`:""} • ${teamName(e.teamId||p?.teamId)}</div></div>
+      <div><div class="managed-event-type">${eventIcon(e.type)} ${e.type}</div><div class="muted">${desc}</div></div>
       <button class="delete-event-btn" type="button" data-event-id="${e.id}">Remove</button>
     </div>`;
   }).join(""):`<div class="muted" style="padding:10px 0">No events recorded for this match.</div>`;
@@ -794,7 +890,9 @@ async function removeEvent(eventId){
   const event=data.events.find(e=>String(e.id)===String(eventId));
   if(!event)return alert("The selected event could not be found. Refresh the page and try again.");
   const p=data.players.find(x=>x.id===event.playerId);
-  const description=`${event.type}${p?` for ${p.name}`:""} at ${Number(event.minute||0)}'`;
+  const description=event.type==="Substitution"
+    ? `Substitution (${playerName(event.playerOutId)} → ${playerName(event.playerInId)}) at ${Number(event.minute||0)}'`
+    : `${event.type}${p?` for ${p.name}`:""} at ${Number(event.minute||0)}'`;
   if(!confirm(`Remove ${description}?`))return;
   adjustScoreForEvent(event,-1);
   data.events=data.events.filter(e=>String(e.id)!==String(eventId));
@@ -985,6 +1083,44 @@ document.querySelector("#teamManagementForm").addEventListener("submit",async e=
 });
 
 
+document.querySelector("#fixtureList").addEventListener("click",e=>{
+  const row=e.target.closest("[data-fixture-id]");
+  if(!row)return;
+  expandedFixtureId=expandedFixtureId===row.dataset.fixtureId?"":row.dataset.fixtureId;
+  render();
+});
+document.querySelector("#selectAllHomeLineup").addEventListener("click",()=>{
+  document.querySelectorAll('#homeLineupChoices input[type="checkbox"]').forEach(x=>x.checked=true);
+});
+document.querySelector("#selectAllAwayLineup").addEventListener("click",()=>{
+  document.querySelectorAll('#awayLineupChoices input[type="checkbox"]').forEach(x=>x.checked=true);
+});
+document.querySelector("#saveLineupsBtn").addEventListener("click",async ()=>{
+  if(!isAdmin)return openLogin();
+  const f=selectedControlMatch(); if(!f)return;
+  const home=[...document.querySelectorAll(`#homeLineupChoices input:checked`)].map(x=>x.dataset.lineupPlayer);
+  const away=[...document.querySelectorAll(`#awayLineupChoices input:checked`)].map(x=>x.dataset.lineupPlayer);
+  if(!home.length||!away.length)return alert("Select at least one player for each team.");
+  f.lineups={home,away};
+  try{await save();flash();render();}catch(err){alert(err.message);}
+});
+document.querySelector("#subTeam").addEventListener("change",renderSubstitutionOptions);
+document.querySelector("#recordSubBtn").addEventListener("click",async ()=>{
+  if(!isAdmin)return openLogin();
+  const f=selectedControlMatch(); if(!f)return;
+  const status=normalizedStatus(f);
+  if(!["live","paused","halftime"].includes(status))return alert("Substitutions can only be recorded for an active match.");
+  const teamId=document.querySelector("#subTeam").value;
+  const playerOutId=document.querySelector("#subPlayerOut").value;
+  const playerInId=document.querySelector("#subPlayerIn").value;
+  if(!playerOutId||!playerInId)return alert("Select both the player going off and the player coming on.");
+  if(playerOutId===playerInId)return alert("Player In and Player Out must be different.");
+  const minuteValue=document.querySelector("#subMinute").value;
+  const minute=minuteValue===""?Math.floor(elapsedSeconds(f)/60):Number(minuteValue);
+  data.events.push({id:"E"+Date.now(),matchId:f.id,teamId,type:"Substitution",playerId:playerInId,playerOutId,playerInId,minute,createdAtMs:Date.now()});
+  try{await save();flash();document.querySelector("#subMinute").value="";render();}catch(err){alert(err.message);}
+});
+
 document.querySelector("#liveStandingsToggle").addEventListener("change",async e=>{
   if(!isAdmin){e.target.checked=data.settings?.liveStandings!==false;return openLogin();}
   data.settings={...(data.settings||{}),liveStandings:e.target.checked};
@@ -992,7 +1128,11 @@ document.querySelector("#liveStandingsToggle").addEventListener("change",async e
 });
 
 document.querySelector("#controlMatch").addEventListener("change",renderControlCenter);
-document.querySelector("#startMatchBtn").addEventListener("click",()=>updateControlledMatch(f=>{
+document.querySelector("#startMatchBtn").addEventListener("click",()=>{
+  const f=selectedControlMatch();
+  const ls=fixtureLineups(f);
+  if(!ls.home.length || !ls.away.length)return alert("Save a lineup for both teams before starting the match.");
+  updateControlledMatch(f=>{
   f.status="live";
   f.phase="firstHalf";
   f.homeScore=hasScore(f)?Number(f.homeScore):0;
@@ -1002,7 +1142,8 @@ document.querySelector("#startMatchBtn").addEventListener("click",()=>updateCont
   f.finishedAtMs=null;
   f.halfTimeAtMs=null;
   f.secondHalfStartedAtMs=null;
-}));
+  });
+});
 document.querySelector("#halfTimeBtn").addEventListener("click",()=>updateControlledMatch(f=>{
   if(normalizedStatus(f)!=="live")return;
   f.elapsedSeconds=elapsedSeconds(f);

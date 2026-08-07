@@ -1,6 +1,6 @@
-const C="sisl-v3.2.3";
+const C="sisl-v3.3.0";
 const ASSETS=[
-  "./","./index.html","./app.js","./manifest.json","./icon.svg",
+  "./","./index.html","./app.js","./manifest.json","./icon.svg","./league-logo.png",
   "./Momo Strikers Logo.png","./Momo Strikers Jersey.png",
   "./No Stamina Hustlers Logo.png","./No Stamina Hustlers Jersey.png",
   "./Jhyap Warriors Logo.png","./Jhyap Warriors Jersey.png"

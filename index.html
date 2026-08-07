@@ -153,6 +153,18 @@
     .fixture-detail-team h4{margin:0 0 8px;color:var(--navy)}
     .fixture-detail-team.away{text-align:right}
     .lineup-list{margin:0;padding:0;list-style:none}.lineup-list li{padding:4px 0;font-size:13px}
+    .live-match-tabs{display:flex;gap:8px;margin:14px 0 10px;border-bottom:1px solid var(--border)}
+    .live-match-tab{border:0;background:transparent;color:var(--muted);font-weight:900;padding:9px 14px;border-bottom:3px solid transparent;cursor:pointer}
+    .live-match-tab.active{color:var(--lime);border-bottom-color:var(--lime)}
+    .live-match-tab-panel{display:none}.live-match-tab-panel.active{display:block}
+    .live-lineup-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .live-lineup-team{background:#061624;border:1px solid var(--border);border-radius:14px;padding:14px}
+    .live-lineup-team.away{text-align:right}
+    .live-lineup-team-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+    .live-lineup-team.away .live-lineup-team-head{justify-content:flex-end}
+    .live-lineup-team-head h4{margin:0;color:#fff}
+    .live-lineup-logo{width:48px;height:48px;object-fit:contain}
+    @media(max-width:700px){.live-lineup-grid{grid-template-columns:1fr}.live-lineup-team.away{text-align:left}.live-lineup-team.away .live-lineup-team-head{justify-content:flex-start}}
     .sub-list{margin-top:12px;padding-top:10px;border-top:1px solid var(--border)}
     .sub-line{font-size:12px;padding:4px 0}.sub-in{color:var(--success);font-weight:800}.sub-out{color:var(--danger);font-weight:800}
     .fixture-details-hint{font-size:11px;color:var(--muted);margin-top:6px}
@@ -320,11 +332,20 @@
           <div class="live-team" id="liveAwayName">Away</div>
         </div>
         <div id="liveClock" class="match-clock">00:00</div>
-        <div class="live-scorers">
-          <h3>Goal scorers</h3>
-          <div id="liveGoalScorers" class="muted">No goals yet.</div>
+        <div class="live-match-tabs" role="tablist" aria-label="Live match details">
+          <button class="live-match-tab active" type="button" data-live-match-tab="overview">Overview</button>
+          <button class="live-match-tab" type="button" data-live-match-tab="lineups">Lineups</button>
         </div>
-        <div class="timeline"><h3>Live timeline</h3><div id="liveTimeline"></div></div>
+        <div id="liveMatchOverview" class="live-match-tab-panel active">
+          <div class="live-scorers">
+            <h3>Goal scorers</h3>
+            <div id="liveGoalScorers" class="muted">No goals yet.</div>
+          </div>
+          <div class="timeline"><h3>Live timeline</h3><div id="liveTimeline"></div></div>
+        </div>
+        <div id="liveMatchLineups" class="live-match-tab-panel">
+          <div id="liveLineupsContent" class="muted">Lineups will appear here after the admin saves the team sheet.</div>
+        </div>
       </div>
       <div id="homeNoLive" class="home-no-live">
         <img src="league-logo.png" class="league-mark" alt="League logo">
@@ -538,7 +559,7 @@
     </section>
   </main>
 
-  <footer>© 2026 Intra Squad Sunday League • Passion. Community. Football. • v3.3.1</footer>
+  <footer>© 2026 Intra Squad Sunday League • Passion. Community. Football. • v3.3.2</footer>
 </div>
 
 <div id="loginModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="loginTitle">

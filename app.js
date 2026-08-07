@@ -488,8 +488,8 @@ function substitutionsHtml(f,teamId){
 function fixtureDetailsHtml(f){
   return `<div class="fixture-details">
     <div class="fixture-detail-grid">
-      <div class="fixture-detail-team"><h4>${teamName(f.home)}</h4>${lineupHtml(f,"home")}${substitutionsHtml(f,f.home)}</div>
-      <div class="fixture-detail-team away"><h4>${teamName(f.away)}</h4>${lineupHtml(f,"away")}${substitutionsHtml(f,f.away)}</div>
+      <div class="fixture-detail-team"><div class="live-lineup-team-head">${logoHtml(f.home)}<h4>${teamName(f.home)}</h4></div>${lineupHtml(f,"home")}${substitutionsHtml(f,f.home)}</div>
+      <div class="fixture-detail-team away"><div class="live-lineup-team-head">${logoHtml(f.away)}<h4>${teamName(f.away)}</h4></div>${lineupHtml(f,"away")}${substitutionsHtml(f,f.away)}</div>
     </div>
   </div>`;
 }
@@ -724,6 +724,13 @@ function renderLiveMatch(){
     if(e.type==="Substitution")return `<div class="timeline-item"><strong>${e.minute||0}'</strong><span>🔁 Substitution — <span class="sub-out">⬇ ${playerName(e.playerOutId)}</span> / <span class="sub-in">⬆ ${playerName(e.playerInId)}</span></span></div>`;
     return `<div class="timeline-item"><strong>${e.minute||0}'</strong><span>${eventIcon(e.type)} ${e.type}${p?` — ${p.name}${e.type==="Own Goal"?` <span class="og-tag">OG</span>`:""}`:""}</span></div>`;
   }).join(""):`<div class="muted">Live match events will appear here.</div>`;
+  const liveLineups=document.querySelector("#liveLineupsContent");
+  if(liveLineups){
+    liveLineups.innerHTML=`<div class="live-lineup-grid">
+      <div class="live-lineup-team"><div class="live-lineup-team-head">${teamLogo(f.home)?`<img class="live-lineup-logo" src="${encodeURI(teamLogo(f.home))}" alt="${teamName(f.home)} logo">`:""}<h4>${teamName(f.home)}</h4></div>${lineupHtml(f,"home")}<h4 style="margin-top:12px">Substitutions</h4>${substitutionsHtml(f,f.home)}</div>
+      <div class="live-lineup-team away"><div class="live-lineup-team-head">${teamLogo(f.away)?`<img class="live-lineup-logo" src="${encodeURI(teamLogo(f.away))}" alt="${teamName(f.away)} logo">`:""}<h4>${teamName(f.away)}</h4></div>${lineupHtml(f,"away")}<h4 style="margin-top:12px">Substitutions</h4>${substitutionsHtml(f,f.away)}</div>
+    </div>`;
+  }
 }
 function selectedControlMatch(){const id=document.querySelector("#controlMatch")?.value;return data.fixtures.find(f=>f.id===id)||data.fixtures[0];}
 function renderControlCenter(){
@@ -1083,6 +1090,15 @@ document.querySelector("#teamManagementForm").addEventListener("submit",async e=
   await applyPlayerManagement();
 });
 
+
+document.querySelector("#liveMatchPanel")?.addEventListener("click",e=>{
+  const btn=e.target.closest("[data-live-match-tab]");
+  if(!btn)return;
+  const tab=btn.dataset.liveMatchTab;
+  document.querySelectorAll(".live-match-tab").forEach(b=>b.classList.toggle("active",b===btn));
+  document.querySelector("#liveMatchOverview")?.classList.toggle("active",tab==="overview");
+  document.querySelector("#liveMatchLineups")?.classList.toggle("active",tab==="lineups");
+});
 
 document.querySelector("#fixtureList").addEventListener("click",e=>{
   const row=e.target.closest("[data-fixture-id]");

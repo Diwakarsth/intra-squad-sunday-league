@@ -1,8 +1,8 @@
 # Changelog
 
-## v3.3.1 – Device Consistency Fix
-- Added automatic version detection so phones, installed PWAs, and laptops converge on the same deployed release.
-- Added service-worker update/activation handling and versioned app.js loading.
-- Improved Home standings responsiveness on phones so all three team names remain visible.
-- Kept the saved-lineup requirement before Start Match.
-- No Firestore league data reset or migration is required.
+## v3.3.2
+- Added Overview and Lineups tabs directly under the live match card.
+- Live Lineups tab shows each team logo, saved starting lineup, captain, and substitutions.
+- Live, paused, half-time, and completed fixtures can be clicked to expand saved lineups.
+- Added team branding to fixture lineup details.
+- Preserved Firebase live data, scoring, standings, events, and admin controls.

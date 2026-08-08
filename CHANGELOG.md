@@ -1,15 +1,15 @@
 # Changelog
 
-## v3.3.3
-- Fixed the page flashing between "Connecting to live data..." and "Connected".
-- Synchronized index.html, app.js, sw.js, and version.json to the same release.
-- Added a one-reload safety guard so mixed GitHub Pages files cannot cause an endless refresh loop.
-- Preserved the Live Match Overview/Lineups tabs and fixture lineup display.
-- No Firebase data reset is required.
-
-## v3.3.2
-- Added Overview and Lineups tabs directly under the live match card.
-- Live Lineups tab shows each team logo, saved starting lineup, captain, and substitutions.
-- Live, paused, half-time, and completed fixtures can be clicked to expand saved lineups.
-- Added team branding to fixture lineup details.
-- Preserved Firebase live data, scoring, standings, events, and admin controls.
+## v1.0.0 — Official Public Release
+- Rebranded the stable league app as the first official public release.
+- Added a public Gallery tab.
+- Gallery media is grouped under the respective fixture.
+- Added a Gallery tab inside the live match.
+- Completed/live fixture details now show media from that game.
+- Added admin file upload for photos and videos.
+- Added upload progress.
+- Added YouTube/direct media link support.
+- Added admin media removal.
+- Added public-read/admin-write Firestore rules for match media.
+- Added Firebase Storage rules for uploaded match media.
+- Replaced the fixed-date calendar emoji in key Home/Fixtures shortcuts with a date-neutral calendar icon.

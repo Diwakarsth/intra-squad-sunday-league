@@ -1,16 +1,31 @@
 {
-  "name": "Sunday Intra Squad League",
-  "short_name": "SISL",
+  "name": "Intra Squad Sunday League",
+  "short_name": "ISSL",
+  "description": "Official Intra Squad Sunday League app \u2014 live scores, lineups, standings, players, awards and match gallery.",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#030b15",
   "theme_color": "#06111f",
   "icons": [
     {
-      "src": "icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "app-icon-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

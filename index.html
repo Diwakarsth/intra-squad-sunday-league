@@ -6,7 +6,8 @@
   <meta name="theme-color" content="#06111f" />
   <title>Intra Squad Sunday League</title>
   <link rel="manifest" href="manifest.json" />
-  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="icon" href="favicon-64.png" type="image/png" />
+  <link rel="apple-touch-icon" href="app-icon-192.png" />
   <style>
     :root{
       --navy:#0b2a5b; --blue:#155bd7; --sky:#eaf2ff; --gold:#d9a514;
@@ -290,6 +291,51 @@
       .home-standings .mini-team-logo{width:22px;height:22px;margin-right:5px;vertical-align:middle}
     }
 
+    /* v4 professional modules */
+    .award-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .award-card{background:linear-gradient(145deg,#07182a,#0b2239);border:1px solid #28445e;border-radius:16px;padding:16px;min-height:135px;position:relative;overflow:hidden}
+    .award-card:after{content:"";position:absolute;width:110px;height:110px;border-radius:50%;right:-38px;top:-42px;background:radial-gradient(circle,rgba(132,204,22,.18),transparent 68%)}
+    .award-icon{font-size:28px;margin-bottom:8px}.award-title{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:900}.award-name{font-size:20px;font-weight:1000;color:#fff;margin-top:4px}.award-meta{font-size:12px;color:#9fb0c1;margin-top:5px}
+    .profile-clickable{cursor:pointer;transition:transform .15s ease,background .15s ease}.profile-clickable:hover{transform:translateY(-1px);background:#0b2239}
+    .player-profile-head{display:flex;align-items:center;gap:14px;margin-bottom:14px}.player-profile-logo{width:72px;height:72px;object-fit:contain;background:white;border-radius:16px;padding:5px}.player-profile-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.profile-stat{background:#07182a;border:1px solid var(--border);border-radius:12px;padding:10px;text-align:center}.profile-stat strong{display:block;font-size:20px;color:#fff}.profile-stat span{font-size:10px;color:var(--muted);text-transform:uppercase}
+    .match-stat-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center}.match-stat-row{display:contents}.match-stat-value{font-size:22px;font-weight:1000;color:#fff;text-align:center}.match-stat-label{text-align:center;color:var(--muted);font-size:12px}.match-stat-team{text-align:center;font-weight:900;color:#fff}
+    .install-btn{display:none;border:1px solid rgba(132,204,22,.45);background:rgba(132,204,22,.08);color:#d7ff9a;border-radius:999px;padding:9px 12px;font-weight:900;cursor:pointer;white-space:nowrap}.install-btn.show{display:inline-flex;align-items:center;gap:6px}
+    @media(max-width:700px){.award-grid{grid-template-columns:1fr}.player-profile-stats{grid-template-columns:repeat(2,1fr)}.install-btn{padding:8px 10px;font-size:12px}}
+
+  
+    /* Gallery */
+    .gallery-toolbar{display:flex;gap:10px;align-items:end;justify-content:space-between;margin-bottom:14px}
+    .gallery-toolbar label{min-width:min(420px,100%)}
+    .gallery-match-group{margin-bottom:20px}
+    .gallery-match-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+    .gallery-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    .gallery-grid.compact-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+    .gallery-item{overflow:hidden;border:1px solid var(--border);border-radius:14px;background:var(--card)}
+    .gallery-item.compact{border-radius:12px}
+    .gallery-media{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;background:#020617}
+    .gallery-video-wrap{position:relative;width:100%;aspect-ratio:16/9;background:#020617}
+    .gallery-video-wrap iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+    .gallery-meta{padding:10px}
+    .gallery-caption{font-weight:800;margin-bottom:4px}
+    .gallery-external{display:grid;place-items:center;min-height:160px;padding:20px;background:#081827;color:#d7ff9a;font-weight:900;text-decoration:none}
+    .gallery-empty{padding:28px;text-align:center;border:1px dashed var(--border);border-radius:14px}
+    .fixture-gallery{grid-column:1/-1;margin-top:16px;padding-top:14px;border-top:1px solid var(--border)}
+    .fixture-gallery h4{margin:0 0 10px}
+    .gallery-admin-panel{margin-top:16px;border:2px solid var(--navy)}
+    .gallery-upload-box{display:grid;gap:10px}
+    .gallery-upload-progress{min-height:20px;font-size:12px;color:var(--muted)}
+    .gallery-admin-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
+    .delete-media-btn{margin-top:8px;border:0;border-radius:9px;padding:7px 9px;background:#fdecec;color:var(--danger);font-weight:900;cursor:pointer}
+    .neutral-calendar{width:20px;height:20px;display:inline-block;vertical-align:-4px}
+    @media(max-width:760px){
+      .gallery-grid,.gallery-admin-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .gallery-grid.compact-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    }
+    @media(max-width:480px){
+      .gallery-grid,.gallery-admin-list,.gallery-grid.compact-grid{grid-template-columns:1fr}
+      .gallery-toolbar{display:block}.gallery-toolbar label{display:block}
+    }
+
   </style>
 </head>
 <body>
@@ -300,7 +346,7 @@
         <img src="league-logo.png" class="league-logo" alt="Intra Squad Sunday League logo">
         <div class="brand-copy"><h1>Intra Squad</h1><p>Sunday League</p><div id="adminStatus" class="admin-status">Connecting to live data…</div></div>
       </div>
-      <button id="authBtn" class="login-btn" type="button">👤 Admin</button>
+      <div style="display:flex;gap:8px;align-items:center"><button id="installAppBtn" class="install-btn" type="button">⬇ Install</button><button id="authBtn" class="login-btn" type="button">👤 Admin</button></div>
     </div>
   </header>
 
@@ -319,6 +365,8 @@
     <button data-tab="teams">Teams</button>
     <button data-tab="top-scorers">Top Scorers</button>
     <button data-tab="players">Players</button>
+    <button data-tab="awards">Awards</button>
+    <button data-tab="gallery">Gallery</button>
     <button data-tab="admin" id="adminTab" class="admin-hidden">Admin</button>
   </nav>
 
@@ -335,6 +383,8 @@
         <div class="live-match-tabs" role="tablist" aria-label="Live match details">
           <button class="live-match-tab active" type="button" data-live-match-tab="overview">Overview</button>
           <button class="live-match-tab" type="button" data-live-match-tab="lineups">Lineups</button>
+          <button class="live-match-tab" type="button" data-live-match-tab="statistics">Statistics</button>
+          <button class="live-match-tab" type="button" data-live-match-tab="gallery">Gallery</button>
         </div>
         <div id="liveMatchOverview" class="live-match-tab-panel active">
           <div class="live-scorers">
@@ -346,6 +396,12 @@
         <div id="liveMatchLineups" class="live-match-tab-panel">
           <div id="liveLineupsContent" class="muted">Lineups will appear here after the admin saves the team sheet.</div>
         </div>
+        <div id="liveMatchStatistics" class="live-match-tab-panel">
+          <div id="liveStatisticsContent" class="muted">Match statistics will appear when the game starts.</div>
+        </div>
+        <div id="liveMatchGallery" class="live-match-tab-panel">
+          <div id="liveGalleryContent" class="muted">Match photos and videos will appear here.</div>
+        </div>
       </div>
       <div id="homeNoLive" class="home-no-live">
         <img src="league-logo.png" class="league-mark" alt="League logo">
@@ -354,7 +410,7 @@
       </div>
       <div class="home-dashboard">
         <div class="card">
-          <div class="home-card-title"><h3><span class="home-card-icon">📅</span> Next Match</h3></div>
+          <div class="home-card-title"><h3><span class="home-card-icon"><svg class="neutral-calendar" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"/></svg></span> Next Match</h3></div>
           <div id="nextFixture" class="muted">Schedule dates in Admin.</div>
         </div>
         <div class="card home-standings">
@@ -374,8 +430,10 @@
         <button class="quick-link" type="button" onclick="document.querySelector('[data-tab=fixtures]').click()"><span class="qicon">◉</span><span><strong>Live Matches</strong><span>Follow real-time scores & events</span></span></button>
         <button class="quick-link" type="button" onclick="document.querySelector('[data-tab=fixtures]').click()"><span class="qicon">👥</span><span><strong>Lineups</strong><span>Open a live or completed fixture</span></span></button>
         <button class="quick-link" type="button" onclick="document.querySelector('[data-tab=teams]').click()"><span class="qicon">🛡️</span><span><strong>Teams</strong><span>View teams, jerseys & squads</span></span></button>
-        <button class="quick-link" type="button" onclick="document.querySelector('[data-tab=fixtures]').click()"><span class="qicon">📅</span><span><strong>Fixtures</strong><span>All upcoming matches</span></span></button>
+        <button class="quick-link" type="button" onclick="document.querySelector('[data-tab=fixtures]').click()"><span class="qicon"><svg class="neutral-calendar" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"/></svg></span><span><strong>Fixtures</strong><span>All upcoming matches</span></span></button>
         <button class="quick-link" type="button" onclick="document.querySelector('[data-tab=players]').click()"><span class="qicon">◎</span><span><strong>Players</strong><span>League player statistics</span></span></button>
+        <button class="quick-link" type="button" onclick="document.querySelector('[data-tab=awards]').click()"><span class="qicon">🏅</span><span><strong>Awards</strong><span>Season leaders & fair play</span></span></button>
+        <button class="quick-link" type="button" onclick="document.querySelector('[data-tab=gallery]').click()"><span class="qicon">▣</span><span><strong>Gallery</strong><span>Match photos & videos</span></span></button>
       </div>
     </section>
 
@@ -415,6 +473,53 @@
       <div class="card">
         <h2>Player statistics</h2>
         <div id="playerList"></div>
+      </div>
+    </section>
+
+    <section id="awards">
+      <div class="card">
+        <h2>Season Awards</h2>
+        <div class="muted" style="margin-bottom:12px">Awards update automatically from recorded league events. Final winners can be confirmed when the season ends.</div>
+        <div id="awardGrid" class="award-grid"></div>
+      </div>
+    </section>
+
+
+    <section id="gallery">
+      <div class="card">
+        <div class="gallery-toolbar">
+          <div><h2 style="margin:0">Match Gallery</h2><div class="muted">Photos and videos organized by their respective game.</div></div>
+          <label>Match<select id="galleryMatchFilter"><option value="">All matches</option></select></label>
+        </div>
+        <div id="galleryContent"></div>
+      </div>
+
+      <div id="galleryAdminPanel" class="card gallery-admin-panel admin-hidden">
+        <h2>Admin • Add Photos & Videos</h2>
+        <div class="muted">Choose the game, select photos/videos from your phone or computer, and upload. Large videos can also be added using a YouTube or direct video link.</div>
+        <div class="gallery-upload-box" style="margin-top:12px">
+          <label>Game<select id="galleryUploadMatch"></select></label>
+          <label>Photos / Videos<input id="galleryFiles" type="file" accept="image/*,video/*" multiple></label>
+          <label>Caption (optional)<input id="galleryCaption" placeholder="Example: Week 1 match highlights"></label>
+          <button id="galleryUploadBtn" class="btn" type="button">Upload Selected Files</button>
+          <div id="galleryUploadProgress" class="gallery-upload-progress"></div>
+        </div>
+
+        <div class="admin-subsection">
+          <h3>Add Media Link</h3>
+          <div class="muted">Useful for YouTube or large videos. This option does not require Firebase Storage.</div>
+          <div class="row" style="margin-top:10px">
+            <label>Type<select id="galleryLinkType"><option value="video">Video</option><option value="image">Photo</option></select></label>
+            <label>Caption<input id="galleryLinkCaption" placeholder="Optional caption"></label>
+          </div>
+          <label>Media URL<input id="galleryLinkUrl" type="url" placeholder="https://..."></label>
+          <button id="galleryAddLinkBtn" class="btn secondary" type="button" style="width:100%;margin-top:10px">Add Media Link</button>
+        </div>
+
+        <div class="admin-subsection">
+          <h3>Manage Media for Selected Game</h3>
+          <div id="galleryAdminList" class="gallery-admin-list"></div>
+        </div>
       </div>
     </section>
 
@@ -559,7 +664,15 @@
     </section>
   </main>
 
-  <footer>© 2026 Intra Squad Sunday League • Passion. Community. Football. • v3.3.3</footer>
+  <footer>© 2026 Intra Squad Sunday League • Passion. Community. Football. • v1.0.0</footer>
+</div>
+
+
+<div id="playerProfileModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="playerProfileTitle">
+  <div class="modal" style="width:min(520px,100%)">
+    <div class="modal-head"><h2 id="playerProfileTitle">Player Profile</h2><button id="closePlayerProfile" class="icon-btn" type="button" aria-label="Close">×</button></div>
+    <div id="playerProfileContent"></div>
+  </div>
 </div>
 
 <div id="loginModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
@@ -577,8 +690,9 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
 <script>
-  window.ISSL_APP_VERSION = "3.3.3";
+  window.ISSL_APP_VERSION = "1.0.0";
   // Keep installed PWAs/phones and desktop browsers on the same deployed release.
   (async()=>{
     try{
@@ -612,6 +726,6 @@
     }catch(e){ console.warn("Version check unavailable",e); }
   })();
 </script>
-<script src="app.js?v=3.3.3"></script>
+<script src="app.js?v=1.0.0"></script>
 </body>
 </html>

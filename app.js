@@ -1,4 +1,4 @@
-const APP_VERSION = "3.3.3";
+const APP_VERSION = "1.0.0";
 const firebaseConfig = {
   apiKey: "AIzaSyAh6B75N8AK1TmIXUz1thxzoKxToeztf08",
   authDomain: "intra-squad-sunday-league.firebaseapp.com",
@@ -11,11 +11,15 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+const storage = firebase.storage();
 const leagueRef = db.collection("league").doc("current");
+const mediaRef = db.collection("matchMedia");
 const ADMIN_EMAIL = "admin@intrasquadleague.com";
 let isAdmin = false;
 let cloudReady = false;
 let unsubscribeLeague = null;
+let unsubscribeMedia = null;
+let matchMedia = [];
 let expandedFixtureId = "";
 
 const TEAM_MEDIA = {
@@ -401,6 +405,23 @@ function startLiveData(){
     setStatus("Unable to connect to live data");
   });
 }
+
+function startMediaData(){
+  if(unsubscribeMedia) unsubscribeMedia();
+  unsubscribeMedia = mediaRef.orderBy("createdAtMs","desc").onSnapshot(snapshot=>{
+    matchMedia = snapshot.docs.map(doc=>({id:doc.id,...doc.data()}));
+    renderGallery();
+    renderAdminGallery();
+    renderLiveMatch();
+    if(expandedFixtureId) render();
+  }, error=>{
+    console.warn("Gallery listener error", error);
+    matchMedia = [];
+    renderGallery();
+    renderAdminGallery();
+  });
+}
+
 const team = id => data.teams.find(t=>t.id===id);
 const teamName = id => team(id)?.name || (id==="FINAL1"?"1st Place":id==="FINAL2"?"2nd Place":"TBD");
 const teamLogo = id => TEAM_MEDIA[id]?.logo || "";
@@ -491,8 +512,172 @@ function fixtureDetailsHtml(f){
       <div class="fixture-detail-team"><div class="live-lineup-team-head">${logoHtml(f.home)}<h4>${teamName(f.home)}</h4></div>${lineupHtml(f,"home")}${substitutionsHtml(f,f.home)}</div>
       <div class="fixture-detail-team away"><div class="live-lineup-team-head">${logoHtml(f.away)}<h4>${teamName(f.away)}</h4></div>${lineupHtml(f,"away")}${substitutionsHtml(f,f.away)}</div>
     </div>
+    ${fixtureMediaSummaryHtml(f)}
   </div>`;
 }
+
+function mediaForMatch(matchId){
+  return matchMedia.filter(m=>String(m.matchId)===String(matchId)).sort((a,b)=>Number(b.createdAtMs||0)-Number(a.createdAtMs||0));
+}
+function youtubeEmbedUrl(url=""){
+  try{
+    const u=new URL(url);
+    if(u.hostname.includes("youtu.be")) return `https://www.youtube.com/embed/${u.pathname.replace("/","")}`;
+    if(u.hostname.includes("youtube.com")){
+      const id=u.searchParams.get("v");
+      if(id)return `https://www.youtube.com/embed/${id}`;
+      const parts=u.pathname.split("/").filter(Boolean);
+      const shorts=parts.indexOf("shorts");
+      if(shorts>=0 && parts[shorts+1])return `https://www.youtube.com/embed/${parts[shorts+1]}`;
+    }
+  }catch{}
+  return "";
+}
+function mediaItemHtml(item,{compact=false,admin=false}={}){
+  const caption=(item.caption||"").replace(/[<>&"]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c]));
+  const url=item.url||"";
+  const isImage=item.mediaType==="image" || (!item.mediaType && /\.(png|jpe?g|gif|webp|avif)(\?|$)/i.test(url));
+  const isVideo=item.mediaType==="video" || (!item.mediaType && /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url));
+  const yt=youtubeEmbedUrl(url);
+  let body="";
+  if(isImage) body=`<img class="gallery-media" src="${url}" alt="${caption||"Match photo"}" loading="lazy">`;
+  else if(yt) body=`<div class="gallery-video-wrap"><iframe src="${yt}" title="${caption||"Match video"}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
+  else if(isVideo) body=`<video class="gallery-media" controls preload="metadata" playsinline src="${url}"></video>`;
+  else body=`<a class="gallery-external" href="${url}" target="_blank" rel="noopener">Open media ↗</a>`;
+  return `<article class="gallery-item ${compact?"compact":""}">
+    ${body}
+    <div class="gallery-meta">
+      ${caption?`<div class="gallery-caption">${caption}</div>`:""}
+      <div class="muted">${item.mediaType==="video"?"Video":"Photo"}${item.createdBy?" • Added by Admin":""}</div>
+      ${admin?`<button class="delete-media-btn" type="button" data-delete-media="${item.id}">Remove</button>`:""}
+    </div>
+  </article>`;
+}
+function matchGalleryHtml(f,{compact=false}={}){
+  const items=mediaForMatch(f.id);
+  if(!items.length)return `<div class="muted">No photos or videos have been added for this match.</div>`;
+  return `<div class="gallery-grid ${compact?"compact-grid":""}">${items.map(item=>mediaItemHtml(item,{compact})).join("")}</div>`;
+}
+function fixtureMediaSummaryHtml(f){
+  const items=mediaForMatch(f.id);
+  return `<div class="fixture-gallery"><h4>Gallery${items.length?` <span class="badge">${items.length}</span>`:""}</h4>${matchGalleryHtml(f,{compact:true})}</div>`;
+}
+function renderGallery(){
+  const filter=document.querySelector("#galleryMatchFilter");
+  const content=document.querySelector("#galleryContent");
+  if(!filter||!content)return;
+  const previous=filter.value;
+  filter.innerHTML=`<option value="">All matches</option>${data.fixtures.map(f=>`<option value="${f.id}">Week ${f.week} • ${teamName(f.home)} vs ${teamName(f.away)}</option>`).join("")}`;
+  if(data.fixtures.some(f=>f.id===previous))filter.value=previous;
+  const selected=filter.value;
+  const fixtures=selected?data.fixtures.filter(f=>f.id===selected):data.fixtures.filter(f=>mediaForMatch(f.id).length);
+  if(!fixtures.length){
+    content.innerHTML=`<div class="gallery-empty"><strong>No media yet</strong><div class="muted">Photos and videos added by the admin will appear here.</div></div>`;
+    return;
+  }
+  content.innerHTML=fixtures.map(f=>{
+    const items=mediaForMatch(f.id);
+    if(!items.length)return "";
+    return `<div class="gallery-match-group">
+      <div class="gallery-match-head">
+        <div><strong>${teamName(f.home)} vs ${teamName(f.away)}</strong><div class="muted">Week ${f.week}${f.date?` • ${f.date}`:""} • ${normalizedStatus(f)==="finished"?"Full Time":normalizedStatus(f)==="live"?"LIVE":normalizedStatus(f)==="halftime"?"Half Time":"Match Gallery"}</div></div>
+        <span class="badge">${items.length} item${items.length===1?"":"s"}</span>
+      </div>
+      <div class="gallery-grid">${items.map(item=>mediaItemHtml(item)).join("")}</div>
+    </div>`;
+  }).join("");
+}
+function renderAdminGallery(){
+  const panel=document.querySelector("#galleryAdminPanel");
+  const matchSel=document.querySelector("#galleryUploadMatch");
+  const list=document.querySelector("#galleryAdminList");
+  if(panel)panel.classList.toggle("admin-hidden",!isAdmin);
+  if(!matchSel||!list)return;
+  const previous=matchSel.value;
+  matchSel.innerHTML=data.fixtures.map(f=>`<option value="${f.id}">Week ${f.week} • ${teamName(f.home)} vs ${teamName(f.away)}</option>`).join("");
+  if(data.fixtures.some(f=>f.id===previous))matchSel.value=previous;
+  const matchId=matchSel.value || data.fixtures[0]?.id;
+  const items=mediaForMatch(matchId);
+  list.innerHTML=items.length?items.map(item=>mediaItemHtml(item,{compact:true,admin:true})).join(""):`<div class="muted">No media uploaded for this match.</div>`;
+}
+function safeFileName(name="file"){
+  return name.normalize("NFKD").replace(/[^\w.-]+/g,"-").replace(/-+/g,"-").replace(/^-|-$/g,"").slice(-100) || "media";
+}
+async function uploadGalleryFiles(){
+  if(!isAdmin)return openLogin();
+  const matchId=document.querySelector("#galleryUploadMatch")?.value;
+  const files=[...(document.querySelector("#galleryFiles")?.files||[])];
+  const caption=document.querySelector("#galleryCaption")?.value.trim()||"";
+  const progress=document.querySelector("#galleryUploadProgress");
+  if(!matchId)return alert("Choose a match first.");
+  if(!files.length)return alert("Choose at least one photo or video.");
+  const allowed=files.filter(file=>file.type.startsWith("image/")||file.type.startsWith("video/"));
+  if(allowed.length!==files.length)return alert("Only image and video files are supported.");
+  const maxVideo=250*1024*1024, maxImage=20*1024*1024;
+  for(const file of allowed){
+    if(file.type.startsWith("video/") && file.size>maxVideo)return alert(`${file.name} is larger than 250 MB. Use the Media Link option for very large videos.`);
+    if(file.type.startsWith("image/") && file.size>maxImage)return alert(`${file.name} is larger than 20 MB.`);
+  }
+  let complete=0;
+  try{
+    for(const file of allowed){
+      const type=file.type.startsWith("video/")?"video":"image";
+      const path=`match-media/${matchId}/${Date.now()}-${Math.random().toString(36).slice(2,8)}-${safeFileName(file.name)}`;
+      const ref=storage.ref(path);
+      const task=ref.put(file,{contentType:file.type,customMetadata:{matchId}});
+      await new Promise((resolve,reject)=>{
+        task.on("state_changed",snap=>{
+          const pct=Math.round((snap.bytesTransferred/snap.totalBytes)*100);
+          if(progress)progress.textContent=`Uploading ${file.name}: ${pct}%`;
+        },reject,resolve);
+      });
+      const url=await task.snapshot.ref.getDownloadURL();
+      await mediaRef.add({
+        matchId,mediaType:type,url,storagePath:path,caption,
+        originalName:file.name,createdAtMs:Date.now(),createdBy:auth.currentUser?.email||ADMIN_EMAIL
+      });
+      complete++;
+    }
+    if(progress)progress.textContent=`Uploaded ${complete} item${complete===1?"":"s"} successfully.`;
+    document.querySelector("#galleryFiles").value="";
+    document.querySelector("#galleryCaption").value="";
+  }catch(err){
+    console.error("Media upload failed",err);
+    const code=err?.code||"";
+    if(code.includes("storage/unauthorized"))alert("Upload permission denied. Publish the included storage.rules in Firebase Storage Rules.");
+    else if(code.includes("storage/unknown")||String(err?.message||"").includes("402")||String(err?.message||"").includes("403"))alert("Firebase Storage is not available for this project. You can use Add Media Link below, or enable Cloud Storage.");
+    else alert(err.message||"Media upload failed.");
+    if(progress)progress.textContent="Upload failed.";
+  }
+}
+async function addGalleryLink(){
+  if(!isAdmin)return openLogin();
+  const matchId=document.querySelector("#galleryUploadMatch")?.value;
+  const url=document.querySelector("#galleryLinkUrl")?.value.trim();
+  const type=document.querySelector("#galleryLinkType")?.value||"video";
+  const caption=document.querySelector("#galleryLinkCaption")?.value.trim()||"";
+  if(!matchId||!url)return alert("Choose a match and enter a media URL.");
+  try{
+    new URL(url);
+    await mediaRef.add({matchId,mediaType:type,url,caption,storagePath:"",createdAtMs:Date.now(),createdBy:auth.currentUser?.email||ADMIN_EMAIL});
+    document.querySelector("#galleryLinkUrl").value="";
+    document.querySelector("#galleryLinkCaption").value="";
+    document.querySelector("#galleryUploadProgress").textContent="Media link added.";
+  }catch(err){alert(err.message||"Unable to add media link.");}
+}
+async function deleteGalleryMedia(id){
+  if(!isAdmin)return openLogin();
+  const item=matchMedia.find(m=>m.id===id);
+  if(!item)return;
+  if(!confirm("Remove this photo/video from the match gallery?"))return;
+  try{
+    if(item.storagePath){
+      try{await storage.ref(item.storagePath).delete();}catch(err){console.warn("Storage delete warning",err);}
+    }
+    await mediaRef.doc(id).delete();
+  }catch(err){alert(err.message||"Unable to remove media.");}
+}
+
 function currentPlayersOnField(f,teamId){
   const side=teamId===f.home?"home":teamId===f.away?"away":"";
   if(!side)return [];
@@ -559,11 +744,11 @@ function render(){
   const scorers=data.players.map(p=>({...p,...statsFor(p.id)})).sort((a,b)=>b.goals-a.goals||b.assists-a.assists);
   const playersWithGoals=scorers.filter(p=>p.goals>0);
   document.querySelector("#topScorers").innerHTML=playersWithGoals.length?playersWithGoals.slice(0,5).map((p,i)=>
-    `<div class="player-row"><span>${i+1}. <strong>${p.name}</strong><div class="muted">${teamName(p.teamId)}</div></span><span><strong>${p.goals}</strong> goal${p.goals===1?"":"s"}</span></div>`).join(""):`<div class="muted">No goals recorded yet.</div>`;
+    `<div class="player-row profile-clickable" data-player-profile="${p.id}"><span>${i+1}. <strong>${p.name}</strong><div class="muted">${teamName(p.teamId)}</div></span><span><strong>${p.goals}</strong> goal${p.goals===1?"":"s"}</span></div>`).join(""):`<div class="muted">No goals recorded yet.</div>`;
 
   document.querySelector("#topScorersFull").innerHTML=playersWithGoals.length?playersWithGoals.map((p,i)=>{
     const rankClass=i===0?"gold":i===1?"silver":i===2?"bronze":"";
-    return `<div class="scorer-row"><div class="scorer-rank ${rankClass}">${i+1}</div><div><strong>${p.name}</strong><div class="muted">${logoHtml(p.teamId,p.name)}${teamName(p.teamId)} • ${p.assists} assist${p.assists===1?"":"s"}</div></div><div class="goal-total">${p.goals}<small>Goals</small></div></div>`;
+    return `<div class="scorer-row profile-clickable" data-player-profile="${p.id}"><div class="scorer-rank ${rankClass}">${i+1}</div><div><strong>${p.name}</strong><div class="muted">${logoHtml(p.teamId,p.name)}${teamName(p.teamId)} • ${p.assists} assist${p.assists===1?"":"s"}</div></div><div class="goal-total">${p.goals}<small>Goals</small></div></div>`;
   }).join(""):`<div class="muted">No goals have been recorded. Admin can add goals from the Admin tab.</div>`;
 
   document.querySelector("#fixtureList").innerHTML=data.fixtures.map(f=>{
@@ -578,6 +763,8 @@ function render(){
   }).join("");
 
   renderLiveTableNotice();
+  renderGallery();
+  renderAdminGallery();
 
   document.querySelector("#standingsBody").innerHTML=st.map((x,i)=>`<tr class="${i===0?"rank1":i===1?"rank2":i===2?"rank3":""}">
     <td>${i+1}</td><td>${logoHtml(x.team.id)}<strong>${x.team.name}</strong></td><td>${x.p}</td><td>${x.w}</td><td>${x.d}</td><td>${x.l}</td><td>${x.gf}</td><td>${x.ga}</td><td>${x.gd}</td><td><strong>${x.pts}</strong></td></tr>`).join("");
@@ -608,9 +795,10 @@ function render(){
   }).join("");
 
   document.querySelector("#playerList").innerHTML=scorers.length?scorers.map(p=>
-    `<div class="player-row"><span><strong>${p.name}</strong>${p.active===false?`<span class="inactive-tag">Former player</span>`:""}<div class="muted">${teamName(p.teamId)}${p.captain?" • Captain":""}${p.position?` • ${p.position}`:""}${p.number?` • #${p.number}`:""}</div></span>
+    `<div class="player-row profile-clickable" data-player-profile="${p.id}"><span><strong>${p.name}</strong>${p.active===false?`<span class="inactive-tag">Former player</span>`:""}<div class="muted">${teamName(p.teamId)}${p.captain?" • Captain":""}${p.position?` • ${p.position}`:""}${p.number?` • #${p.number}`:""}</div></span>
     <span class="muted">G ${p.goals} • A ${p.assists} • YC ${p.yellow} • RC ${p.red} • POTM ${p.potm}</span></div>`).join(""):`<div class="muted">No players added yet.</div>`;
 
+  renderAwards(scorers,st);
   fillSelects();
   renderLiveMatch();
   renderControlCenter();
@@ -619,6 +807,50 @@ function render(){
   const liveStandingsToggle=document.querySelector("#liveStandingsToggle");
   if(liveStandingsToggle) liveStandingsToggle.checked=data.settings?.liveStandings!==false;
 }
+
+function renderAwards(scorers,st){
+  const grid=document.querySelector("#awardGrid"); if(!grid)return;
+  const active=scorers.filter(p=>p.active!==false);
+  const golden=[...active].sort((a,b)=>b.goals-a.goals||b.assists-a.assists)[0];
+  const playmaker=[...active].sort((a,b)=>b.assists-a.assists||b.goals-a.goals)[0];
+  const mvp=[...active].sort((a,b)=>(b.goals*3+b.assists*2+b.potm*4)-(a.goals*3+a.assists*2+a.potm*4))[0];
+  const fair=data.teams.map(t=>{
+    const ids=new Set(data.players.filter(p=>p.teamId===t.id).map(p=>p.id));
+    const ev=data.events.filter(e=>ids.has(e.playerId));
+    const yc=ev.filter(e=>e.type==="Yellow Card").length, rc=ev.filter(e=>e.type==="Red Card").length;
+    return {team:t,yc,rc,score:yc+rc*3};
+  }).sort((a,b)=>a.score-b.score||a.rc-b.rc||a.yc-b.yc)[0];
+  const finished=data.fixtures.filter(f=>normalizedStatus(f)==="finished").length;
+  const seasonDone=finished===data.fixtures.length && data.fixtures.length>0;
+  const leader=st[0];
+  const card=(icon,title,name,meta)=>`<div class="award-card"><div class="award-icon">${icon}</div><div class="award-title">${title}</div><div class="award-name">${name||"—"}</div><div class="award-meta">${meta||"No data yet"}</div></div>`;
+  grid.innerHTML=[
+    card("🥇","Golden Boot",golden?.goals?golden.name:"—",golden?.goals?`${golden.goals} goal${golden.goals===1?"":"s"}`:"No goals recorded"),
+    card("🎯","Playmaker",playmaker?.assists?playmaker.name:"—",playmaker?.assists?`${playmaker.assists} assist${playmaker.assists===1?"":"s"}`:"No assists recorded"),
+    card("⭐","MVP Leader",mvp && (mvp.goals||mvp.assists||mvp.potm)?mvp.name:"—",mvp?`G ${mvp.goals} • A ${mvp.assists} • POTM ${mvp.potm}`:"No stats recorded"),
+    card("🤝","Fair Play",fair?.team?.name||"—",fair?`${fair.yc} yellow • ${fair.rc} red`:"No cards recorded"),
+    card("🏆",seasonDone?"Champion":"Current Leader",leader?.team?.name||"—",leader?`${leader.pts} pts • GD ${leader.gd>0?"+":""}${leader.gd}`:"Season not started"),
+    card("🔥","League Activity","${finished} / ${data.fixtures.length}","matches completed")
+  ].join("");
+}
+
+function openPlayerProfile(playerId){
+  const p=data.players.find(x=>x.id===playerId); if(!p)return;
+  const s=statsFor(p.id), media=TEAM_MEDIA[p.teamId]||{};
+  document.querySelector("#playerProfileTitle").textContent=p.name;
+  document.querySelector("#playerProfileContent").innerHTML=`
+    <div class="player-profile-head">${media.logo?`<img class="player-profile-logo" src="${encodeURI(media.logo)}" alt="${teamName(p.teamId)} logo">`:""}<div><strong style="font-size:20px">${p.name}</strong><div class="muted">${teamName(p.teamId)}${p.captain?" • Captain":""}${p.number?` • #${p.number}`:""}${p.active===false?" • Former player":""}</div></div></div>
+    <div class="player-profile-stats">
+      <div class="profile-stat"><strong>${s.goals}</strong><span>Goals</span></div>
+      <div class="profile-stat"><strong>${s.assists}</strong><span>Assists</span></div>
+      <div class="profile-stat"><strong>${s.yellow}</strong><span>Yellow</span></div>
+      <div class="profile-stat"><strong>${s.red}</strong><span>Red</span></div>
+      <div class="profile-stat"><strong>${s.potm}</strong><span>POTM</span></div>
+      <div class="profile-stat"><strong>${p.position||"—"}</strong><span>Position</span></div>
+    </div>`;
+  document.querySelector("#playerProfileModal").classList.add("open");
+}
+function closePlayerProfile(){document.querySelector("#playerProfileModal")?.classList.remove("open");}
 
 function isRecordedScore(value){
   return value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
@@ -730,6 +962,21 @@ function renderLiveMatch(){
       <div class="live-lineup-team"><div class="live-lineup-team-head">${teamLogo(f.home)?`<img class="live-lineup-logo" src="${encodeURI(teamLogo(f.home))}" alt="${teamName(f.home)} logo">`:""}<h4>${teamName(f.home)}</h4></div>${lineupHtml(f,"home")}<h4 style="margin-top:12px">Substitutions</h4>${substitutionsHtml(f,f.home)}</div>
       <div class="live-lineup-team away"><div class="live-lineup-team-head">${teamLogo(f.away)?`<img class="live-lineup-logo" src="${encodeURI(teamLogo(f.away))}" alt="${teamName(f.away)} logo">`:""}<h4>${teamName(f.away)}</h4></div>${lineupHtml(f,"away")}<h4 style="margin-top:12px">Substitutions</h4>${substitutionsHtml(f,f.away)}</div>
     </div>`;
+    const liveGallery=document.querySelector("#liveGalleryContent");
+    if(liveGallery) liveGallery.innerHTML=matchGalleryHtml(f);
+    const liveStats=document.querySelector("#liveStatisticsContent");
+    if(liveStats){
+      const ev=matchEvents(f.id);
+      const count=(teamId,type)=>ev.filter(e=>e.teamId===teamId&&e.type===type).length;
+      const homeGoals=Number(f.homeScore||0), awayGoals=Number(f.awayScore||0);
+      liveStats.innerHTML=`<div class="match-stat-grid">
+        <div class="match-stat-team">${teamName(f.home)}</div><div class="match-stat-label">Statistic</div><div class="match-stat-team">${teamName(f.away)}</div>
+        <div class="match-stat-value">${homeGoals}</div><div class="match-stat-label">Goals</div><div class="match-stat-value">${awayGoals}</div>
+        <div class="match-stat-value">${count(f.home,"Yellow Card")}</div><div class="match-stat-label">Yellow Cards</div><div class="match-stat-value">${count(f.away,"Yellow Card")}</div>
+        <div class="match-stat-value">${count(f.home,"Red Card")}</div><div class="match-stat-label">Red Cards</div><div class="match-stat-value">${count(f.away,"Red Card")}</div>
+        <div class="match-stat-value">${count(f.home,"Substitution")}</div><div class="match-stat-label">Substitutions</div><div class="match-stat-value">${count(f.away,"Substitution")}</div>
+      </div>`;
+    }
   }
 }
 function selectedControlMatch(){const id=document.querySelector("#controlMatch")?.value;return data.fixtures.find(f=>f.id===id)||data.fixtures[0];}
@@ -1098,6 +1345,8 @@ document.querySelector("#liveMatchPanel")?.addEventListener("click",e=>{
   document.querySelectorAll(".live-match-tab").forEach(b=>b.classList.toggle("active",b===btn));
   document.querySelector("#liveMatchOverview")?.classList.toggle("active",tab==="overview");
   document.querySelector("#liveMatchLineups")?.classList.toggle("active",tab==="lineups");
+  document.querySelector("#liveMatchStatistics")?.classList.toggle("active",tab==="statistics");
+  document.querySelector("#liveMatchGallery")?.classList.toggle("active",tab==="gallery");
 });
 
 document.querySelector("#fixtureList").addEventListener("click",e=>{
@@ -1136,6 +1385,16 @@ document.querySelector("#recordSubBtn").addEventListener("click",async ()=>{
   const minute=minuteValue===""?Math.floor(elapsedSeconds(f)/60):Number(minuteValue);
   data.events.push({id:"E"+Date.now(),matchId:f.id,teamId,type:"Substitution",playerId:playerInId,playerOutId,playerInId,minute,createdAtMs:Date.now()});
   try{await save();flash();document.querySelector("#subMinute").value="";render();}catch(err){alert(err.message);}
+});
+
+
+document.querySelector("#galleryMatchFilter")?.addEventListener("change",renderGallery);
+document.querySelector("#galleryUploadMatch")?.addEventListener("change",renderAdminGallery);
+document.querySelector("#galleryUploadBtn")?.addEventListener("click",uploadGalleryFiles);
+document.querySelector("#galleryAddLinkBtn")?.addEventListener("click",addGalleryLink);
+document.querySelector("#galleryAdminList")?.addEventListener("click",e=>{
+  const btn=e.target.closest("[data-delete-media]");
+  if(btn)deleteGalleryMedia(btn.dataset.deleteMedia);
 });
 
 document.querySelector("#liveStandingsToggle").addEventListener("change",async e=>{
@@ -1202,6 +1461,13 @@ document.querySelector("#resetCompletedMatchBtn").addEventListener("click",async
   });
   try{await save();flash();render();}catch(err){alert(err.message);}
 });
+document.querySelector("main")?.addEventListener("click",e=>{
+  const row=e.target.closest("[data-player-profile]");
+  if(row)openPlayerProfile(row.dataset.playerProfile);
+});
+document.querySelector("#closePlayerProfile")?.addEventListener("click",closePlayerProfile);
+document.querySelector("#playerProfileModal")?.addEventListener("click",e=>{if(e.target.id==="playerProfileModal")closePlayerProfile();});
+
 document.querySelector("#homeGoalBtn").addEventListener("click",()=>{const f=selectedControlMatch();if(f)prepareGoalEvent(f.home);});
 document.querySelector("#awayGoalBtn").addEventListener("click",()=>{const f=selectedControlMatch();if(f)prepareGoalEvent(f.away);});
 setInterval(()=>{
@@ -1251,14 +1517,28 @@ document.querySelector("#loginForm").addEventListener("submit",async e=>{
   }
 });
 
+let deferredInstallPrompt=null;
+window.addEventListener("beforeinstallprompt",e=>{
+  e.preventDefault(); deferredInstallPrompt=e;
+  document.querySelector("#installAppBtn")?.classList.add("show");
+});
+document.querySelector("#installAppBtn")?.addEventListener("click",async()=>{
+  if(!deferredInstallPrompt)return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt=null;
+  document.querySelector("#installAppBtn")?.classList.remove("show");
+});
+window.addEventListener("appinstalled",()=>document.querySelector("#installAppBtn")?.classList.remove("show"));
+
 auth.onAuthStateChanged(user=>{
   isAdmin=Boolean(user && user.email?.toLowerCase()===ADMIN_EMAIL);
   updateAuthUI();
   if(isAdmin && !cloudReady) setStatus("Admin connected • Connecting to live data…");
 });
-document.addEventListener("keydown",e=>{if(e.key==="Escape")closeLogin()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeLogin();closePlayerProfile();}});
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("sw.js?v=3.3.3").then(reg=>{
+  navigator.serviceWorker.register("sw.js?v=1.0.0").then(reg=>{
     reg.update().catch(()=>{});
     reg.addEventListener("updatefound",()=>{
       const worker=reg.installing;
@@ -1279,4 +1559,5 @@ if("serviceWorker" in navigator){
 render();
 updateAuthUI();
 startLiveData();
+startMediaData();
 

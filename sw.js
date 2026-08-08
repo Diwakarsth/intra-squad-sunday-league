@@ -1,7 +1,7 @@
-const C="sisl-v3.3.3";
+const C="issl-v1.0.0";
 const ASSETS=[
   "./","./index.html","./app.js","./version.json","./manifest.json","./icon.svg","./league-logo.png",
-  "./Momo Strikers Logo.png","./Momo Strikers Jersey.png",
+  "./app-icon-192.png","./app-icon-512.png","./favicon-64.png","./Momo Strikers Logo.png","./Momo Strikers Jersey.png",
   "./No Stamina Hustlers Logo.png","./No Stamina Hustlers Jersey.png",
   "./Jhyap Warriors Logo.png","./Jhyap Warriors Jersey.png"
 ];

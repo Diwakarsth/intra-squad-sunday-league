@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.0.4 — Mobile Header Fix
+- Removed Download App Icon from the public header.
+- Kept Install App visible to everyone.
+- Rebuilt the mobile header so the league logo/name/status no longer overlap the Install/Admin buttons.
+- Install App and Admin Login now share a clean two-button row on phones.
+- Improved mobile navigation sizing and horizontal scrolling.
+
+
+
 ## v1.0.3 — Install & App Icon Download
 - Install App button is visible to all visitors.
 - Native PWA install prompt is used when available.

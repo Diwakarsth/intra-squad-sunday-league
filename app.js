@@ -1,4 +1,4 @@
-const APP_VERSION = "1.0.1";
+const APP_VERSION = "1.0.2";
 const firebaseConfig = {
   apiKey: "AIzaSyAh6B75N8AK1TmIXUz1thxzoKxToeztf08",
   authDomain: "intra-squad-sunday-league.firebaseapp.com",
@@ -9,6 +9,11 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
+// Direct photo upload configuration (Cloudinary free plan).
+// Set these two values once after creating an unsigned image-only upload preset.
+const CLOUDINARY_CLOUD_NAME = "w4yvxtsl";
+const CLOUDINARY_UPLOAD_PRESET = "intra_squad_gallery";
+
 const auth = firebase.auth();
 const db = firebase.firestore();
 const leagueRef = db.collection("league").doc("current");
@@ -548,7 +553,7 @@ function mediaItemHtml(item,{compact=false,admin=false}={}){
     <div class="gallery-meta">
       ${caption?`<div class="gallery-caption">${caption}</div>`:""}
       <div class="muted">${item.mediaType==="video"?"Video":"Photo"}${item.createdBy?" • Added by Admin":""}</div>
-      ${admin?`<button class="delete-media-btn" type="button" data-delete-media="${item.id}">Remove</button>`:""}
+      ${admin?`<button class="delete-media-btn" type="button" data-delete-media="${item.id}">${item.mediaType==="image"?"Remove Photo":"Remove Video"}</button>`:""}
     </div>
   </article>`;
 }
@@ -602,6 +607,56 @@ function renderAdminGallery(){
 function safeFileName(name="file"){
   return name.normalize("NFKD").replace(/[^\w.-]+/g,"-").replace(/-+/g,"-").replace(/^-|-$/g,"").slice(-100) || "media";
 }
+
+function cloudinaryConfigured(){
+  return CLOUDINARY_CLOUD_NAME && CLOUDINARY_UPLOAD_PRESET &&
+    !CLOUDINARY_CLOUD_NAME.startsWith("YOUR_") &&
+    !CLOUDINARY_UPLOAD_PRESET.startsWith("YOUR_");
+}
+async function uploadGalleryPhotos(){
+  if(!isAdmin)return openLogin();
+  if(!cloudinaryConfigured()){
+    alert("Direct photo upload needs one-time Cloudinary setup. Open PHOTO_UPLOAD_SETUP.md and enter your Cloud Name and unsigned upload preset in app.js.");
+    return;
+  }
+  const matchId=document.querySelector("#galleryUploadMatch")?.value;
+  const files=[...(document.querySelector("#galleryPhotoFiles")?.files||[])];
+  const caption=document.querySelector("#galleryPhotoCaption")?.value.trim()||"";
+  const progress=document.querySelector("#galleryUploadProgress");
+  if(!matchId)return alert("Choose a match first.");
+  if(!files.length)return alert("Choose at least one photo.");
+  for(const file of files){
+    if(!file.type.startsWith("image/"))return alert("Photo upload accepts image files only.");
+    if(file.size>10*1024*1024)return alert(`${file.name} is larger than 10 MB.`);
+  }
+  let done=0;
+  try{
+    for(const file of files){
+      const form=new FormData();
+      form.append("file",file);
+      form.append("upload_preset",CLOUDINARY_UPLOAD_PRESET);
+      const response=await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(CLOUDINARY_CLOUD_NAME)}/image/upload`,{method:"POST",body:form});
+      const result=await response.json();
+      if(!response.ok)throw new Error(result?.error?.message||"Photo upload failed.");
+      await mediaRef.add({
+        matchId,mediaType:"image",url:result.secure_url,caption,
+        cloudinaryPublicId:result.public_id||"",
+        originalName:file.name,createdAtMs:Date.now(),
+        createdBy:auth.currentUser?.email||ADMIN_EMAIL
+      });
+      done++;
+      if(progress)progress.textContent=`Uploaded ${done} of ${files.length} photo${files.length===1?"":"s"}.`;
+    }
+    document.querySelector("#galleryPhotoFiles").value="";
+    document.querySelector("#galleryPhotoCaption").value="";
+    if(progress)progress.textContent=`${done} photo${done===1?"":"s"} added to the match gallery.`;
+  }catch(err){
+    console.error(err);
+    if(progress)progress.textContent="Upload failed.";
+    alert(err.message||"Photo upload failed.");
+  }
+}
+
 async function addGalleryLink(){
   if(!isAdmin)return openLogin();
   const matchId=document.querySelector("#galleryUploadMatch")?.value;
@@ -1339,6 +1394,7 @@ document.querySelector("#recordSubBtn").addEventListener("click",async ()=>{
 
 document.querySelector("#galleryMatchFilter")?.addEventListener("change",renderGallery);
 document.querySelector("#galleryUploadMatch")?.addEventListener("change",renderAdminGallery);
+document.querySelector("#galleryPhotoUploadBtn")?.addEventListener("click",uploadGalleryPhotos);
 document.querySelector("#galleryAddLinkBtn")?.addEventListener("click",addGalleryLink);
 document.querySelector("#galleryAdminList")?.addEventListener("click",e=>{
   const btn=e.target.closest("[data-delete-media]");
@@ -1486,7 +1542,7 @@ auth.onAuthStateChanged(user=>{
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeLogin();closePlayerProfile();}});
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("sw.js?v=1.0.1").then(reg=>{
+  navigator.serviceWorker.register("sw.js?v=1.0.2").then(reg=>{
     reg.update().catch(()=>{});
     reg.addEventListener("updatefound",()=>{
       const worker=reg.installing;

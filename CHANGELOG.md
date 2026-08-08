@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.0.2 — Direct Photo Upload
+- Fixed League Activity card so completed/total match counts render dynamically instead of showing template code.
+- Admin can select photos directly from phone or laptop.
+- Multiple-photo selection supported.
+- Photos are assigned to the selected match automatically.
+- Added upload progress.
+- Added Admin-only Remove Photo / Remove Video controls.
+- Videos remain link-based to conserve storage.
+- Uses Cloudinary direct unsigned image upload instead of Firebase Storage.
+- Firebase can remain on the Spark plan.
+- Added PHOTO_UPLOAD_SETUP.md for one-time Cloudinary configuration.
+
 ## v1.0.0 — Official Public Release
 - Rebranded the stable league app as the first official public release.
 - Added a public Gallery tab.

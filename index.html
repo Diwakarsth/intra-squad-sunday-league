@@ -495,33 +495,32 @@
       </div>
 
       <div id="galleryAdminPanel" class="card gallery-admin-panel admin-hidden">
-        <h2>Admin • Add Match Photos & Videos</h2>
-        <div class="muted">Free mode: add public photo/video links. No Firebase Storage upgrade is required.</div>
+        <h2>Admin • Match Gallery</h2>
+        <div class="muted">Choose the game first. Photos can be selected directly from this phone or computer. Videos continue to use links such as YouTube.</div>
+
         <div class="gallery-upload-box" style="margin-top:12px">
           <label>Game<select id="galleryUploadMatch"></select></label>
-          <div class="row">
-            <label>Media type
-              <select id="galleryLinkType">
-                <option value="image">Photo</option>
-                <option value="video">Video</option>
-              </select>
-            </label>
-            <label>Caption
-              <input id="galleryLinkCaption" placeholder="Optional caption">
-            </label>
-          </div>
-          <label>Public media link
-            <input id="galleryLinkUrl" type="url" placeholder="https://...">
-          </label>
-          <button id="galleryAddLinkBtn" class="btn" type="button">Add to Match Gallery</button>
+          <h3 style="margin-bottom:0">Upload Photos from Device</h3>
+          <label>Choose photos<input id="galleryPhotoFiles" type="file" accept="image/*" multiple></label>
+          <label>Caption (optional)<input id="galleryPhotoCaption" placeholder="Example: Week 1 team photo"></label>
+          <button id="galleryPhotoUploadBtn" class="btn" type="button">Upload Photos</button>
           <div id="galleryUploadProgress" class="gallery-upload-progress"></div>
         </div>
+
         <div class="admin-subsection">
-          <h3>Recommended free sources</h3>
-          <div class="muted">Videos: YouTube links work best. Photos: use any public direct HTTPS image URL.</div>
+          <h3>Add Video / Photo Link</h3>
+          <div class="muted">Use this for YouTube videos or an existing public photo URL.</div>
+          <div class="row" style="margin-top:10px">
+            <label>Media type<select id="galleryLinkType"><option value="video">Video</option><option value="image">Photo</option></select></label>
+            <label>Caption<input id="galleryLinkCaption" placeholder="Optional caption"></label>
+          </div>
+          <label>Public media link<input id="galleryLinkUrl" type="url" placeholder="https://..."></label>
+          <button id="galleryAddLinkBtn" class="btn secondary" type="button" style="width:100%;margin-top:10px">Add Media Link</button>
         </div>
+
         <div class="admin-subsection">
           <h3>Manage Media for Selected Game</h3>
+          <div class="muted">Only Admin sees the Remove Photo / Remove Video buttons.</div>
           <div id="galleryAdminList" class="gallery-admin-list"></div>
         </div>
       </div>
@@ -668,7 +667,7 @@
     </section>
   </main>
 
-  <footer>© 2026 Intra Squad Sunday League • Passion. Community. Football. • v1.0.1</footer>
+  <footer>© 2026 Intra Squad Sunday League • Passion. Community. Football. • v1.0.2</footer>
 </div>
 
 
@@ -695,7 +694,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script>
-  window.ISSL_APP_VERSION = "1.0.1";
+  window.ISSL_APP_VERSION = "1.0.2";
   // Keep installed PWAs/phones and desktop browsers on the same deployed release.
   (async()=>{
     try{
@@ -729,6 +728,6 @@
     }catch(e){ console.warn("Version check unavailable",e); }
   })();
 </script>
-<script src="app.js?v=1.0.1"></script>
+<script src="app.js?v=1.0.2"></script>
 </body>
 </html>

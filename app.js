@@ -1,4 +1,4 @@
-const APP_VERSION = "1.0.0";
+const APP_VERSION = "1.0.1";
 const firebaseConfig = {
   apiKey: "AIzaSyAh6B75N8AK1TmIXUz1thxzoKxToeztf08",
   authDomain: "intra-squad-sunday-league.firebaseapp.com",
@@ -11,7 +11,6 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
-const storage = firebase.storage();
 const leagueRef = db.collection("league").doc("current");
 const mediaRef = db.collection("matchMedia");
 const ADMIN_EMAIL = "admin@intrasquadleague.com";
@@ -603,53 +602,6 @@ function renderAdminGallery(){
 function safeFileName(name="file"){
   return name.normalize("NFKD").replace(/[^\w.-]+/g,"-").replace(/-+/g,"-").replace(/^-|-$/g,"").slice(-100) || "media";
 }
-async function uploadGalleryFiles(){
-  if(!isAdmin)return openLogin();
-  const matchId=document.querySelector("#galleryUploadMatch")?.value;
-  const files=[...(document.querySelector("#galleryFiles")?.files||[])];
-  const caption=document.querySelector("#galleryCaption")?.value.trim()||"";
-  const progress=document.querySelector("#galleryUploadProgress");
-  if(!matchId)return alert("Choose a match first.");
-  if(!files.length)return alert("Choose at least one photo or video.");
-  const allowed=files.filter(file=>file.type.startsWith("image/")||file.type.startsWith("video/"));
-  if(allowed.length!==files.length)return alert("Only image and video files are supported.");
-  const maxVideo=250*1024*1024, maxImage=20*1024*1024;
-  for(const file of allowed){
-    if(file.type.startsWith("video/") && file.size>maxVideo)return alert(`${file.name} is larger than 250 MB. Use the Media Link option for very large videos.`);
-    if(file.type.startsWith("image/") && file.size>maxImage)return alert(`${file.name} is larger than 20 MB.`);
-  }
-  let complete=0;
-  try{
-    for(const file of allowed){
-      const type=file.type.startsWith("video/")?"video":"image";
-      const path=`match-media/${matchId}/${Date.now()}-${Math.random().toString(36).slice(2,8)}-${safeFileName(file.name)}`;
-      const ref=storage.ref(path);
-      const task=ref.put(file,{contentType:file.type,customMetadata:{matchId}});
-      await new Promise((resolve,reject)=>{
-        task.on("state_changed",snap=>{
-          const pct=Math.round((snap.bytesTransferred/snap.totalBytes)*100);
-          if(progress)progress.textContent=`Uploading ${file.name}: ${pct}%`;
-        },reject,resolve);
-      });
-      const url=await task.snapshot.ref.getDownloadURL();
-      await mediaRef.add({
-        matchId,mediaType:type,url,storagePath:path,caption,
-        originalName:file.name,createdAtMs:Date.now(),createdBy:auth.currentUser?.email||ADMIN_EMAIL
-      });
-      complete++;
-    }
-    if(progress)progress.textContent=`Uploaded ${complete} item${complete===1?"":"s"} successfully.`;
-    document.querySelector("#galleryFiles").value="";
-    document.querySelector("#galleryCaption").value="";
-  }catch(err){
-    console.error("Media upload failed",err);
-    const code=err?.code||"";
-    if(code.includes("storage/unauthorized"))alert("Upload permission denied. Publish the included storage.rules in Firebase Storage Rules.");
-    else if(code.includes("storage/unknown")||String(err?.message||"").includes("402")||String(err?.message||"").includes("403"))alert("Firebase Storage is not available for this project. You can use Add Media Link below, or enable Cloud Storage.");
-    else alert(err.message||"Media upload failed.");
-    if(progress)progress.textContent="Upload failed.";
-  }
-}
 async function addGalleryLink(){
   if(!isAdmin)return openLogin();
   const matchId=document.querySelector("#galleryUploadMatch")?.value;
@@ -671,9 +623,6 @@ async function deleteGalleryMedia(id){
   if(!item)return;
   if(!confirm("Remove this photo/video from the match gallery?"))return;
   try{
-    if(item.storagePath){
-      try{await storage.ref(item.storagePath).delete();}catch(err){console.warn("Storage delete warning",err);}
-    }
     await mediaRef.doc(id).delete();
   }catch(err){alert(err.message||"Unable to remove media.");}
 }
@@ -1390,7 +1339,6 @@ document.querySelector("#recordSubBtn").addEventListener("click",async ()=>{
 
 document.querySelector("#galleryMatchFilter")?.addEventListener("change",renderGallery);
 document.querySelector("#galleryUploadMatch")?.addEventListener("change",renderAdminGallery);
-document.querySelector("#galleryUploadBtn")?.addEventListener("click",uploadGalleryFiles);
 document.querySelector("#galleryAddLinkBtn")?.addEventListener("click",addGalleryLink);
 document.querySelector("#galleryAdminList")?.addEventListener("click",e=>{
   const btn=e.target.closest("[data-delete-media]");
@@ -1538,7 +1486,7 @@ auth.onAuthStateChanged(user=>{
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeLogin();closePlayerProfile();}});
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("sw.js?v=1.0.0").then(reg=>{
+  navigator.serviceWorker.register("sw.js?v=1.0.1").then(reg=>{
     reg.update().catch(()=>{});
     reg.addEventListener("updatefound",()=>{
       const worker=reg.installing;

@@ -495,27 +495,31 @@
       </div>
 
       <div id="galleryAdminPanel" class="card gallery-admin-panel admin-hidden">
-        <h2>Admin • Add Photos & Videos</h2>
-        <div class="muted">Choose the game, select photos/videos from your phone or computer, and upload. Large videos can also be added using a YouTube or direct video link.</div>
+        <h2>Admin • Add Match Photos & Videos</h2>
+        <div class="muted">Free mode: add public photo/video links. No Firebase Storage upgrade is required.</div>
         <div class="gallery-upload-box" style="margin-top:12px">
           <label>Game<select id="galleryUploadMatch"></select></label>
-          <label>Photos / Videos<input id="galleryFiles" type="file" accept="image/*,video/*" multiple></label>
-          <label>Caption (optional)<input id="galleryCaption" placeholder="Example: Week 1 match highlights"></label>
-          <button id="galleryUploadBtn" class="btn" type="button">Upload Selected Files</button>
+          <div class="row">
+            <label>Media type
+              <select id="galleryLinkType">
+                <option value="image">Photo</option>
+                <option value="video">Video</option>
+              </select>
+            </label>
+            <label>Caption
+              <input id="galleryLinkCaption" placeholder="Optional caption">
+            </label>
+          </div>
+          <label>Public media link
+            <input id="galleryLinkUrl" type="url" placeholder="https://...">
+          </label>
+          <button id="galleryAddLinkBtn" class="btn" type="button">Add to Match Gallery</button>
           <div id="galleryUploadProgress" class="gallery-upload-progress"></div>
         </div>
-
         <div class="admin-subsection">
-          <h3>Add Media Link</h3>
-          <div class="muted">Useful for YouTube or large videos. This option does not require Firebase Storage.</div>
-          <div class="row" style="margin-top:10px">
-            <label>Type<select id="galleryLinkType"><option value="video">Video</option><option value="image">Photo</option></select></label>
-            <label>Caption<input id="galleryLinkCaption" placeholder="Optional caption"></label>
-          </div>
-          <label>Media URL<input id="galleryLinkUrl" type="url" placeholder="https://..."></label>
-          <button id="galleryAddLinkBtn" class="btn secondary" type="button" style="width:100%;margin-top:10px">Add Media Link</button>
+          <h3>Recommended free sources</h3>
+          <div class="muted">Videos: YouTube links work best. Photos: use any public direct HTTPS image URL.</div>
         </div>
-
         <div class="admin-subsection">
           <h3>Manage Media for Selected Game</h3>
           <div id="galleryAdminList" class="gallery-admin-list"></div>
@@ -664,7 +668,7 @@
     </section>
   </main>
 
-  <footer>© 2026 Intra Squad Sunday League • Passion. Community. Football. • v1.0.0</footer>
+  <footer>© 2026 Intra Squad Sunday League • Passion. Community. Football. • v1.0.1</footer>
 </div>
 
 
@@ -690,9 +694,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
 <script>
-  window.ISSL_APP_VERSION = "1.0.0";
+  window.ISSL_APP_VERSION = "1.0.1";
   // Keep installed PWAs/phones and desktop browsers on the same deployed release.
   (async()=>{
     try{
@@ -726,6 +729,6 @@
     }catch(e){ console.warn("Version check unavailable",e); }
   })();
 </script>
-<script src="app.js?v=1.0.0"></script>
+<script src="app.js?v=1.0.1"></script>
 </body>
 </html>

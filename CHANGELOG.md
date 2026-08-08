@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.0.3 — Install & App Icon Download
+- Install App button is visible to all visitors.
+- Native PWA install prompt is used when available.
+- iPhone/iPad users get Add to Home Screen instructions when needed.
+- Added Download App Icon using the 1024px league icon.
+- Admin Login remains separate.
+
+
+
 ## v1.0.2 — Direct Photo Upload
 - Fixed League Activity card so completed/total match counts render dynamically instead of showing template code.
 - Admin can select photos directly from phone or laptop.

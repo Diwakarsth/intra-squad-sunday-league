@@ -1,4 +1,4 @@
-const APP_VERSION = "1.0.2";
+const APP_VERSION = "1.0.3";
 const firebaseConfig = {
   apiKey: "AIzaSyAh6B75N8AK1TmIXUz1thxzoKxToeztf08",
   authDomain: "intra-squad-sunday-league.firebaseapp.com",
@@ -1523,17 +1523,30 @@ document.querySelector("#loginForm").addEventListener("submit",async e=>{
 
 let deferredInstallPrompt=null;
 window.addEventListener("beforeinstallprompt",e=>{
-  e.preventDefault(); deferredInstallPrompt=e;
-  document.querySelector("#installAppBtn")?.classList.add("show");
+  e.preventDefault();
+  deferredInstallPrompt=e;
 });
 document.querySelector("#installAppBtn")?.addEventListener("click",async()=>{
-  if(!deferredInstallPrompt)return;
-  deferredInstallPrompt.prompt();
-  await deferredInstallPrompt.userChoice;
-  deferredInstallPrompt=null;
-  document.querySelector("#installAppBtn")?.classList.remove("show");
+  const isStandalone=window.matchMedia?.("(display-mode: standalone)")?.matches || window.navigator.standalone===true;
+  if(isStandalone){
+    alert("Intra Squad Sunday League is already installed on this device.");
+    return;
+  }
+  if(deferredInstallPrompt){
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt=null;
+    return;
+  }
+  const ua=navigator.userAgent||"";
+  const isiOS=/iPad|iPhone|iPod/.test(ua) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+  if(isiOS){
+    alert("To install on iPhone/iPad:\n\n1. Tap the Share button in Safari.\n2. Choose Add to Home Screen.\n3. Tap Add.");
+  }else{
+    alert("To install the app, open this site in Chrome or Edge and use the browser's Install app / Add to Home screen option.");
+  }
 });
-window.addEventListener("appinstalled",()=>document.querySelector("#installAppBtn")?.classList.remove("show"));
+window.addEventListener("appinstalled",()=>{ deferredInstallPrompt=null; });
 
 auth.onAuthStateChanged(user=>{
   isAdmin=Boolean(user && user.email?.toLowerCase()===ADMIN_EMAIL);
@@ -1542,7 +1555,7 @@ auth.onAuthStateChanged(user=>{
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeLogin();closePlayerProfile();}});
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("sw.js?v=1.0.2").then(reg=>{
+  navigator.serviceWorker.register("sw.js?v=1.0.3").then(reg=>{
     reg.update().catch(()=>{});
     reg.addEventListener("updatefound",()=>{
       const worker=reg.installing;

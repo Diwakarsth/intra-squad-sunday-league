@@ -834,7 +834,7 @@ function renderAwards(scorers,st){
     card("⭐","MVP Leader",mvp && (mvp.goals||mvp.assists||mvp.potm)?mvp.name:"—",mvp?`G ${mvp.goals} • A ${mvp.assists} • POTM ${mvp.potm}`:"No stats recorded"),
     card("🤝","Fair Play",fair?.team?.name||"—",fair?`${fair.yc} yellow • ${fair.rc} red`:"No cards recorded"),
     card("🏆",seasonDone?"Champion":"Current Leader",leader?.team?.name||"—",leader?`${leader.pts} pts • GD ${leader.gd>0?"+":""}${leader.gd}`:"Season not started"),
-    card("🔥","League Activity","${finished} / ${data.fixtures.length}","matches completed")
+    card("🔥","League Activity",`${finished} / ${data.fixtures.length}`,"matches completed")
   ].join("");
 }
 

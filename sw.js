@@ -1,4 +1,4 @@
-const C="issl-v1.0.5";
+const C="issl-v1.0.6";
 const ASSETS=[
   "./","./index.html","./app.js","./version.json","./manifest.json","./icon.svg","./league-logo.png",
   "./app-icon-192.png","./app-icon-512.png","./app-icon-1024.png","./favicon-64.png","./Momo Strikers Logo.png","./Momo Strikers Jersey.png",

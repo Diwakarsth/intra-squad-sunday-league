@@ -1,4 +1,4 @@
-const APP_VERSION = "1.0.5";
+const APP_VERSION = "1.0.6";
 const firebaseConfig = {
   apiKey: "AIzaSyAh6B75N8AK1TmIXUz1thxzoKxToeztf08",
   authDomain: "intra-squad-sunday-league.firebaseapp.com",
@@ -424,6 +424,97 @@ function startMediaData(){
     renderGallery();
     renderAdminGallery();
   });
+}
+
+
+function backupFileName(){
+  const now=new Date();
+  const pad=n=>String(n).padStart(2,"0");
+  return `issl-backup-${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.json`;
+}
+function setBackupStatus(message){
+  const el=document.querySelector("#backupStatus");
+  if(el)el.textContent=message;
+}
+async function downloadLeagueBackup(){
+  if(!isAdmin)return openLogin();
+  try{
+    setBackupStatus("Preparing backup…");
+    const mediaSnapshot=await mediaRef.get();
+    const gallery=mediaSnapshot.docs.map(doc=>({id:doc.id,...doc.data()}));
+    const backup={
+      format:"ISSL_BACKUP",
+      backupVersion:1,
+      appVersion:APP_VERSION,
+      exportedAt:new Date().toISOString(),
+      leagueData:structuredClone(data),
+      matchMedia:gallery
+    };
+    const blob=new Blob([JSON.stringify(backup,null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;
+    a.download=backupFileName();
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    setBackupStatus(`Backup downloaded • ${gallery.length} Gallery item${gallery.length===1?"":"s"} included.`);
+  }catch(err){
+    console.error("Backup failed",err);
+    setBackupStatus("Backup failed.");
+    alert(err.message||"Unable to create backup.");
+  }
+}
+function validateLeagueBackup(backup){
+  if(!backup || backup.format!=="ISSL_BACKUP")throw new Error("This is not an Intra Squad Sunday League backup file.");
+  const d=backup.leagueData;
+  if(!d || !Array.isArray(d.teams) || !Array.isArray(d.players) || !Array.isArray(d.fixtures) || !Array.isArray(d.events)){
+    throw new Error("Backup is missing required league data.");
+  }
+  if(backup.matchMedia!=null && !Array.isArray(backup.matchMedia))throw new Error("Backup Gallery data is invalid.");
+  return true;
+}
+async function restoreLeagueBackup(){
+  if(!isAdmin)return openLogin();
+  const input=document.querySelector("#restoreLeagueBackupFile");
+  const file=input?.files?.[0];
+  if(!file)return alert("Choose a backup JSON file first.");
+  try{
+    setBackupStatus("Reading backup…");
+    const backup=JSON.parse(await file.text());
+    validateLeagueBackup(backup);
+    const gallery=Array.isArray(backup.matchMedia)?backup.matchMedia:[];
+    const exported=backup.exportedAt?new Date(backup.exportedAt).toLocaleString():"unknown date";
+    const ok=confirm(
+      `Restore this backup?\n\nBackup date: ${exported}\nTeams: ${backup.leagueData.teams.length}\nPlayers: ${backup.leagueData.players.length}\nFixtures: ${backup.leagueData.fixtures.length}\nEvents: ${backup.leagueData.events.length}\nGallery items: ${gallery.length}\n\nThis will replace the CURRENT league data and Gallery records.`
+    );
+    if(!ok){setBackupStatus("Restore cancelled.");return;}
+    const second=confirm("Final confirmation: replace the current live Firebase league data with this backup?");
+    if(!second){setBackupStatus("Restore cancelled.");return;}
+    setBackupStatus("Restoring league data…");
+    await leagueRef.set({
+      ...backup.leagueData,
+      restoredAt:firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    setBackupStatus("Restoring Gallery records…");
+    const current=await mediaRef.get();
+    for(const doc of current.docs)await doc.ref.delete();
+    for(const item of gallery){
+      const {id,...payload}=item||{};
+      if(!payload || typeof payload!=="object")continue;
+      if(id)await mediaRef.doc(String(id)).set(payload);
+      else await mediaRef.add(payload);
+    }
+    input.value="";
+    setBackupStatus(`Restore completed successfully • ${gallery.length} Gallery item${gallery.length===1?"":"s"} restored.`);
+    alert("Backup restored successfully. Live data will refresh automatically.");
+  }catch(err){
+    console.error("Restore failed",err);
+    setBackupStatus("Restore failed. Current data may be partially changed; check the live site before making more edits.");
+    alert(err.message||"Unable to restore backup.");
+  }
 }
 
 const team = id => data.teams.find(t=>t.id===id);
@@ -1416,6 +1507,13 @@ document.querySelector("#recordSubBtn").addEventListener("click",async ()=>{
 });
 
 
+document.querySelector("#downloadLeagueBackupBtn")?.addEventListener("click",downloadLeagueBackup);
+document.querySelector("#restoreLeagueBackupBtn")?.addEventListener("click",restoreLeagueBackup);
+document.querySelector("#restoreLeagueBackupFile")?.addEventListener("change",e=>{
+  const file=e.target.files?.[0];
+  setBackupStatus(file?`Selected backup: ${file.name}`:"No backup selected.");
+});
+
 document.querySelector("#galleryMatchFilter")?.addEventListener("change",renderGallery);
 document.querySelector("#galleryUploadMatch")?.addEventListener("change",renderAdminGallery);
 document.querySelector("#galleryPhotoUploadBtn")?.addEventListener("click",uploadGalleryPhotos);
@@ -1579,7 +1677,7 @@ auth.onAuthStateChanged(user=>{
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeLogin();closePlayerProfile();}});
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("sw.js?v=1.0.5").then(reg=>{
+  navigator.serviceWorker.register("sw.js?v=1.0.6").then(reg=>{
     reg.update().catch(()=>{});
     reg.addEventListener("updatefound",()=>{
       const worker=reg.installing;

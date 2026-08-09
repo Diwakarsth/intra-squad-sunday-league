@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.0.6 — Admin Backup & Restore
+- Added Download League Backup under Admin.
+- Backup JSON includes teams, players, fixtures, scores, lineups, substitutions, match events, settings, and Gallery media records/links.
+- Added Restore Selected Backup with two confirmation prompts.
+- Restore replaces the live Firestore league document and Gallery records with the selected backup.
+- Existing Cloudinary photo URLs/public IDs are preserved in backup records.
+
+
+
 ## v1.0.5 — Results & Team Player Statistics
 - Latest Results now shows every completed match with the most recently completed game first.
 - Scores are shown prominently for every completed result.

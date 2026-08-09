@@ -1,4 +1,4 @@
-const APP_VERSION = "1.0.4";
+const APP_VERSION = "1.0.5";
 const firebaseConfig = {
   apiKey: "AIzaSyAh6B75N8AK1TmIXUz1thxzoKxToeztf08",
   authDomain: "intra-squad-sunday-league.firebaseapp.com",
@@ -511,7 +511,16 @@ function substitutionsHtml(f,teamId){
   return `<div class="sub-list">${subs.map(e=>`<div class="sub-line"><strong>${Number(e.minute||0)}'</strong> <span class="sub-out">⬇ ${playerName(e.playerOutId)}</span> &nbsp; <span class="sub-in">⬆ ${playerName(e.playerInId)}</span></div>`).join("")}</div>`;
 }
 function fixtureDetailsHtml(f){
+  const finished=normalizedStatus(f)==="finished" && hasScore(f);
+  const resultSummary=finished?`<div class="completed-match-summary">
+    <div class="result-with-scorers">
+      <div class="result-team result-home"><strong>${teamName(f.home)}</strong>${teamScorersHtml(f,f.home,"left")}</div>
+      <div class="result-center"><div class="result-score">${Number(f.homeScore)}–${Number(f.awayScore)}</div><span class="badge">Full Time</span><div class="muted">Week ${f.week}${f.date?` • ${f.date}`:""}</div></div>
+      <div class="result-team result-away"><strong>${teamName(f.away)}</strong>${teamScorersHtml(f,f.away,"right")}</div>
+    </div>
+  </div>`:"";
   return `<div class="fixture-details">
+    ${resultSummary}
     <div class="fixture-detail-grid">
       <div class="fixture-detail-team"><div class="live-lineup-team-head">${logoHtml(f.home)}<h4>${teamName(f.home)}</h4></div>${lineupHtml(f,"home")}${substitutionsHtml(f,f.home)}</div>
       <div class="fixture-detail-team away"><div class="live-lineup-team-head">${logoHtml(f.away)}<h4>${teamName(f.away)}</h4></div>${lineupHtml(f,"away")}${substitutionsHtml(f,f.away)}</div>
@@ -731,14 +740,23 @@ function render(){
   document.querySelector("#kpiGoals").textContent=played.reduce((n,f)=>n+f.homeScore+f.awayScore,0);
   document.querySelector("#kpiLeader").textContent=st[0]?.team.name||"—";
 
-  const latest=played.at(-1);
-  document.querySelector("#latestResult").innerHTML=latest?
-    `<div class="result-with-scorers">
-      <div class="result-team result-home"><strong>${teamName(latest.home)}</strong>${teamScorersHtml(latest,latest.home,"left")}</div>
-      <div class="result-center"><div class="result-score">${latest.homeScore}–${latest.awayScore}</div><span class="badge">Full Time</span><div class="muted">Week ${latest.week}</div></div>
-      <div class="result-team result-away"><strong>${teamName(latest.away)}</strong>${teamScorersHtml(latest,latest.away,"right")}</div>
-    </div>`:
-    `No completed match yet.`;
+  const completedResults=[...played].sort((a,b)=>{
+    const aTime=Number(a.finishedAtMs||0), bTime=Number(b.finishedAtMs||0);
+    if(aTime!==bTime)return bTime-aTime;
+    const ai=data.fixtures.findIndex(x=>x.id===a.id), bi=data.fixtures.findIndex(x=>x.id===b.id);
+    return bi-ai;
+  });
+  document.querySelector("#latestResult").innerHTML=completedResults.length?
+    `<div class="latest-results-list">${completedResults.map(f=>`
+      <div class="latest-result-item">
+        <div class="latest-result-meta">Week ${f.week}${f.date?` • ${f.date}`:""}${f.time?` • ${f.time}`:""}</div>
+        <div class="result-with-scorers">
+          <div class="result-team result-home"><strong>${teamName(f.home)}</strong>${teamScorersHtml(f,f.home,"left")}</div>
+          <div class="result-center"><div class="result-score">${Number(f.homeScore)}–${Number(f.awayScore)}</div><span class="badge">Full Time</span></div>
+          <div class="result-team result-away"><strong>${teamName(f.away)}</strong>${teamScorersHtml(f,f.away,"right")}</div>
+        </div>
+      </div>`).join("")}</div>`:
+    `No completed matches yet.`;
 
   const next=data.fixtures.find(f=>f.status!=="finished" && f.status!=="live" && f.status!=="paused" && f.status!=="halftime");
   document.querySelector("#nextFixture").innerHTML=next?
@@ -761,7 +779,7 @@ function render(){
     const label=status==="live"?"🔴 LIVE":status==="halftime"?"Half Time":status==="paused"?"Paused":status==="finished"?"Full Time":"Scheduled";
     const canOpen=["live","paused","halftime","finished"].includes(status);
     return `<div class="match ${canOpen?"fixture-clickable":""}" ${canOpen?`data-fixture-id="${f.id}"`:""}><div>${logoHtml(f.home)}<strong>${teamName(f.home)}</strong><div class="muted">Week ${f.week}</div></div>
-      <div class="score">${matchHasScore?`${Number(f.homeScore)}–${Number(f.awayScore)}`:"VS"}<div class="badge">${label}</div>${canOpen?`<div class="fixture-details-hint">${expandedFixtureId===f.id?"Hide":"View"} lineups</div>`:""}</div>
+      <div class="score">${matchHasScore?`${Number(f.homeScore)}–${Number(f.awayScore)}`:"VS"}<div class="badge">${label}</div>${canOpen?`<div class="fixture-details-hint">${expandedFixtureId===f.id?"Hide":"View"} match details</div>`:""}</div>
       <div class="team-right"><strong>${teamName(f.away)}</strong>${logoHtml(f.away)}<div class="muted">${f.date||""}${f.time?` • ${f.time}`:""}${f.venue?`<br>${f.venue}`:""}</div></div>
       ${expandedFixtureId===f.id?fixtureDetailsHtml(f):""}</div>`;
   }).join("");
@@ -791,16 +809,22 @@ function render(){
       <div class="team-media">
         <div class="jersey-wrap">${media.jersey?`<img class="team-jersey-img" src="${encodeURI(media.jersey)}" alt="${t.name} jersey">`:`<div class="muted">Jersey image unavailable</div>`}</div>
         <div class="squad">
-          <h4>Players</h4>
-          <ul class="squad-list">${ps.map(p=>`<li><strong>${p.name}</strong>${p.captain?`<span class="captain-tag">Captain</span>`:""}</li>`).join("")}</ul>
+          <h4>Players & Statistics</h4>
+          <ul class="team-player-list">${ps.map(p=>{
+            const s=statsFor(p.id);
+            return `<li class="team-player-row profile-clickable" data-player-profile="${p.id}">
+              <div>
+                <div class="team-player-name"><strong>${p.name}</strong>${p.captain?`<span class="captain-tag">Captain</span>`:""}</div>
+                <div class="team-player-extra">${p.number?`#${p.number}`:""}${p.number&&p.position?" • ":""}${p.position||""}</div>
+              </div>
+              <div class="team-player-stats"><strong>G ${s.goals}</strong> • A ${s.assists} • YC ${s.yellow} • RC ${s.red} • POTM ${s.potm}</div>
+            </li>`;
+          }).join("")}</ul>
+          <div class="muted" style="margin-top:8px">Tap a player to view full player details.</div>
         </div>
       </div>
     </article>`;
   }).join("");
-
-  document.querySelector("#playerList").innerHTML=scorers.length?scorers.map(p=>
-    `<div class="player-row profile-clickable" data-player-profile="${p.id}"><span><strong>${p.name}</strong>${p.active===false?`<span class="inactive-tag">Former player</span>`:""}<div class="muted">${teamName(p.teamId)}${p.captain?" • Captain":""}${p.position?` • ${p.position}`:""}${p.number?` • #${p.number}`:""}</div></span>
-    <span class="muted">G ${p.goals} • A ${p.assists} • YC ${p.yellow} • RC ${p.red} • POTM ${p.potm}</span></div>`).join(""):`<div class="muted">No players added yet.</div>`;
 
   renderAwards(scorers,st);
   fillSelects();
@@ -1555,7 +1579,7 @@ auth.onAuthStateChanged(user=>{
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeLogin();closePlayerProfile();}});
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("sw.js?v=1.0.4").then(reg=>{
+  navigator.serviceWorker.register("sw.js?v=1.0.5").then(reg=>{
     reg.update().catch(()=>{});
     reg.addEventListener("updatefound",()=>{
       const worker=reg.installing;

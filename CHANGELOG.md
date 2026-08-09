@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.0.5 — Results & Team Player Statistics
+- Latest Results now shows every completed match with the most recently completed game first.
+- Scores are shown prominently for every completed result.
+- Goal scorers and own-goal labels are shown beneath the respective teams.
+- Completed fixture details now repeat the full-time score and scorers above lineups.
+- Removed the standalone Players navigation tab and Players quick link.
+- Team pages now show every player's goals, assists, yellow cards, red cards and POTM count directly under the respective team.
+- Player names on Team pages remain clickable and open the existing detailed player profile.
+
+
+
 ## v1.0.4 — Mobile Header Fix
 - Removed Download App Icon from the public header.
 - Kept Install App visible to everyone.

@@ -1,4 +1,4 @@
-const APP_VERSION = "1.0.6";
+const APP_VERSION = "1.0.7";
 const firebaseConfig = {
   apiKey: "AIzaSyAh6B75N8AK1TmIXUz1thxzoKxToeztf08",
   authDomain: "intra-squad-sunday-league.firebaseapp.com",
@@ -1049,7 +1049,7 @@ function teamScorersHtml(f, teamId, align="left"){
   if(!goals.length)return `<div class="team-scorers-empty">No goals</div>`;
   return `<div class="team-scorers ${align}">${goals.map(e=>{
     const p=data.players.find(x=>x.id===e.playerId);
-    return `<div class="team-scorer-line"><span>${p?.name||"Unknown player"}${e.type==="Own Goal"?` <span class="og-tag">OG</span>`:""}</span><strong>${Number(e.minute||0)}'</strong></div>`;
+    return `<div class="team-scorer-line"><span>${p?.name||"Unknown player"}${e.type==="Own Goal"?` <span class="og-tag">OG</span>`:""} <strong>${Number(e.minute||0)}'</strong></span></div>`;
   }).join("")}</div>`;
 }
 function renderLiveMatch(){
@@ -1677,7 +1677,7 @@ auth.onAuthStateChanged(user=>{
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeLogin();closePlayerProfile();}});
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("sw.js?v=1.0.6").then(reg=>{
+  navigator.serviceWorker.register("sw.js?v=1.0.7").then(reg=>{
     reg.update().catch(()=>{});
     reg.addEventListener("updatefound",()=>{
       const worker=reg.installing;

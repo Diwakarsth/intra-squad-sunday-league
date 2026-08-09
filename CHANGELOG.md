@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.0.7 — Visible Scores & Scorer Minutes
+- Changed every match/result score to the same high-contrast blue so scores remain visible on the dark theme.
+- Goal minute now appears immediately after each scorer name.
+- Applied to Latest Results, completed fixtures, and match result summaries.
+- Keeps the v1.0.6 Admin Backup & Restore feature.
+
+
+
 ## v1.0.6 — Admin Backup & Restore
 - Added Download League Backup under Admin.
 - Backup JSON includes teams, players, fixtures, scores, lineups, substitutions, match events, settings, and Gallery media records/links.

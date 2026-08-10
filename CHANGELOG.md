@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.0.11 — Gallery Remove Action Fix
+- Fixed the actual Remove Photo issue: the click handler previously existed only inside the Admin media-management list.
+- Added a global delegated Gallery remove handler so dynamically rendered Remove Photo / Remove Video buttons work from the main Gallery and other Gallery views.
+- Added removing-state feedback and clearer error handling.
+- Removal deletes only the selected Firestore Gallery record; other photos remain unchanged.
+
+
+
 ## v1.0.10 — Visible Gallery Remove Control
 - Admin Remove Photo / Remove Video button is now displayed directly on every Gallery media card, including match-specific galleries such as Jhyap Warriors matches.
 - Increased mobile visibility and tap size of the remove control.

@@ -1,4 +1,4 @@
-const APP_VERSION = "1.0.10";
+const APP_VERSION = "1.0.11";
 const firebaseConfig = {
   apiKey: "AIzaSyAh6B75N8AK1TmIXUz1thxzoKxToeztf08",
   authDomain: "intra-squad-sunday-league.firebaseapp.com",
@@ -814,13 +814,20 @@ async function addGalleryLink(){
 async function deleteGalleryMedia(id){
   if(!isAdmin)return openLogin();
   const item=matchMedia.find(m=>m.id===id);
-  if(!item)return;
+  if(!item){
+    alert("This Gallery item could not be found. Refresh the page and try again.");
+    return;
+  }
   if(!confirm(`Remove this ${item.mediaType==="video"?"video":"photo"} from the match gallery?\n\nThis removes it from the league website. It does not delete the original Cloudinary asset.`))return;
   try{
+    document.querySelectorAll(`[data-delete-media="${CSS.escape(String(id))}"]`).forEach(btn=>{btn.disabled=true;btn.textContent="Removing…";});
     await mediaRef.doc(id).delete();
     const progress=document.querySelector("#galleryUploadProgress");
     if(progress)progress.textContent=`${item.mediaType==="video"?"Video":"Photo"} removed from the match gallery.`;
-  }catch(err){alert(err.message||"Unable to remove media.");}
+  }catch(err){
+    document.querySelectorAll(`[data-delete-media="${CSS.escape(String(id))}"]`).forEach(btn=>{btn.disabled=false;btn.textContent=item.mediaType==="video"?"🗑 Remove Video":"🗑 Remove Photo";});
+    alert(err.message||"Unable to remove media.");
+  }
 }
 
 function currentPlayersOnField(f,teamId){
@@ -1630,9 +1637,15 @@ document.querySelector("#galleryMatchFilter")?.addEventListener("change",renderG
 document.querySelector("#galleryUploadMatch")?.addEventListener("change",renderAdminGallery);
 document.querySelector("#galleryPhotoUploadBtn")?.addEventListener("click",uploadGalleryPhotos);
 document.querySelector("#galleryAddLinkBtn")?.addEventListener("click",addGalleryLink);
-document.querySelector("#galleryAdminList")?.addEventListener("click",e=>{
+// Gallery media cards are rendered dynamically in several places.
+// Use one delegated listener so Remove Photo/Video works from the main Gallery,
+// the Admin gallery manager, match details, and any future gallery view.
+document.addEventListener("click",e=>{
   const btn=e.target.closest("[data-delete-media]");
-  if(btn)deleteGalleryMedia(btn.dataset.deleteMedia);
+  if(!btn)return;
+  e.preventDefault();
+  e.stopPropagation();
+  deleteGalleryMedia(btn.dataset.deleteMedia);
 });
 
 document.querySelector("#liveStandingsToggle").addEventListener("change",async e=>{
@@ -1789,7 +1802,7 @@ auth.onAuthStateChanged(user=>{
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeLogin();closePlayerProfile();}});
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("sw.js?v=1.0.10").then(reg=>{
+  navigator.serviceWorker.register("sw.js?v=1.0.11").then(reg=>{
     reg.update().catch(()=>{});
     reg.addEventListener("updatefound",()=>{
       const worker=reg.installing;

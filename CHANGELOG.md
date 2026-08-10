@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.0.10 — Visible Gallery Remove Control
+- Admin Remove Photo / Remove Video button is now displayed directly on every Gallery media card, including match-specific galleries such as Jhyap Warriors matches.
+- Increased mobile visibility and tap size of the remove control.
+- Removal still affects only the selected Gallery record.
+
+
+
 ## v1.0.9 — Gallery, Schedule, Teams & Future Events
 - Added General League Gallery uploads while keeping match-specific photo uploads.
 - Updated remaining August 16 and August 23 fixtures; August 30 Final remains unchanged.

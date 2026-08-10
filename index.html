@@ -386,13 +386,26 @@
     @media(max-width:560px){.backup-actions{grid-template-columns:1fr}}
 
   
-    /* v1.0.7: high-contrast result scores and scorer-minute placement */
+    /* v1.0.9: high-contrast result scores and scorer-minute placement */
     .result-score,.score{color:#2f9bff !important;}
     .result-score{font-weight:1000;text-shadow:0 0 14px rgba(47,155,255,.18);}
     .team-scorer-line{align-items:baseline;}
     .team-scorer-line span{display:inline;}
     .team-scorer-line strong{display:inline;margin-left:6px;color:#8eea31 !important;font-weight:900;}
     .team-scorers.right .team-scorer-line strong{margin-left:6px;margin-right:0;}
+
+  
+    .upcoming-fixtures{min-height:180px}
+    .upcoming-slide{text-align:center;padding:6px 2px}.upcoming-count{font-size:11px;color:var(--muted);margin-bottom:8px}
+    .upcoming-teams{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px}.upcoming-teams>div:first-child,.upcoming-teams>div:last-child{display:flex;align-items:center;justify-content:center;gap:7px}
+    .upcoming-vs{font-weight:1000;color:#7dd3fc}.upcoming-meta{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.45}
+    .upcoming-controls{display:grid;grid-template-columns:38px 1fr 38px;gap:8px;align-items:center;margin-top:12px}.upcoming-controls button{border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text);border-radius:10px;height:34px;font-size:22px;cursor:pointer}
+    .upcoming-dots{display:flex;justify-content:center;gap:6px}.upcoming-dots span{width:6px;height:6px;border-radius:99px;background:var(--border)}.upcoming-dots span.active{background:#7dd3fc;width:18px}
+    .team-management-info{display:grid;gap:8px;margin-bottom:14px;padding:12px;border:1px solid var(--border);border-radius:12px;background:rgba(125,211,252,.04)}.team-management-info div{display:grid;gap:3px}.team-management-info span{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}.team-management-info strong{font-size:13px;line-height:1.4}
+    .completed-team-events{display:grid;gap:5px;margin-top:7px}.completed-event-label{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-top:4px}
+    .team-card-events{display:grid;gap:3px}.team-card-line{display:flex;align-items:center;gap:6px;font-size:12px}.yellow-card-detail,.red-card-detail{width:9px;height:13px;border-radius:2px;display:inline-block;flex:0 0 auto}.yellow-card-detail{background:#facc15}.red-card-detail{background:#ef4444}.team-cards-empty{font-size:11px;color:var(--muted)}
+    .future-events-list{display:grid;gap:12px;margin-top:14px}.future-event-card{display:grid;grid-template-columns:145px 1fr;gap:16px;padding:15px;border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.02)}.future-event-date{font-weight:1000;color:#7dd3fc}.future-event-main{display:flex;gap:10px;align-items:flex-start}.future-event-icon{font-size:22px}.future-event-main ul{margin:7px 0 0;padding-left:18px;color:var(--muted);font-size:12px}
+    @media(max-width:600px){.future-event-card{grid-template-columns:1fr;gap:6px}.upcoming-teams{gap:5px}.upcoming-teams strong{font-size:12px}}
 
   </style>
 </head>
@@ -424,6 +437,7 @@
     <button data-tab="top-scorers">Top Scorers</button>
     <button data-tab="awards">Awards</button>
     <button data-tab="gallery">Gallery</button>
+    <button data-tab="future-events">Future Events</button>
     <button data-tab="admin" id="adminTab" class="admin-hidden">Admin</button>
   </nav>
 
@@ -467,8 +481,8 @@
       </div>
       <div class="home-dashboard">
         <div class="card">
-          <div class="home-card-title"><h3><span class="home-card-icon"><svg class="neutral-calendar" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"/></svg></span> Next Match</h3></div>
-          <div id="nextFixture" class="muted">Schedule dates in Admin.</div>
+          <div class="home-card-title"><h3><span class="home-card-icon"><svg class="neutral-calendar" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"/></svg></span> Upcoming Fixtures</h3></div>
+          <div id="nextFixture" class="upcoming-fixtures">Upcoming fixtures loading…</div>
         </div>
         <div class="card home-standings">
           <div class="home-card-title"><h3><span class="home-card-icon">📊</span> League Standings</h3><span class="muted">Top 3</span></div>
@@ -533,10 +547,18 @@
     </section>
 
 
+    <section id="future-events">
+      <div class="card">
+        <h2 style="margin:0">📢 Future Events</h2>
+        <div class="muted" style="margin-top:4px">Upcoming league, cup and community dates.</div>
+        <div id="futureEventsList" class="future-events-list"></div>
+      </div>
+    </section>
+
     <section id="gallery">
       <div class="card">
         <div class="gallery-toolbar">
-          <div><h2 style="margin:0">Match Gallery</h2><div class="muted">Photos and videos organized by their respective game.</div></div>
+          <div><h2 style="margin:0">League Gallery</h2><div class="muted">View all league photos together or filter media by a specific match.</div></div>
           <label>Match<select id="galleryMatchFilter"><option value="">All matches</option></select></label>
         </div>
         <div id="galleryContent"></div>
@@ -544,10 +566,10 @@
 
       <div id="galleryAdminPanel" class="card gallery-admin-panel admin-hidden">
         <h2>Admin • Match Gallery</h2>
-        <div class="muted">Choose the game first. Photos can be selected directly from this phone or computer. Videos continue to use links such as YouTube.</div>
+        <div class="muted">Upload to the General League Gallery for league-wide photos, or choose a specific match to keep photos attached to that game. Videos continue to use links such as YouTube.</div>
 
         <div class="gallery-upload-box" style="margin-top:12px">
-          <label>Game<select id="galleryUploadMatch"></select></label>
+          <label>Gallery destination<select id="galleryUploadMatch"></select></label>
           <h3 style="margin-bottom:0">Upload Photos from Device</h3>
           <label>Choose photos<input id="galleryPhotoFiles" type="file" accept="image/*" multiple></label>
           <label>Caption (optional)<input id="galleryPhotoCaption" placeholder="Example: Week 1 team photo"></label>
@@ -723,7 +745,7 @@
     </section>
   </main>
 
-  <footer>© 2026 Intra Squad Sunday League • Passion. Community. Football. • v1.0.7</footer>
+  <footer>© 2026 Intra Squad Sunday League • Passion. Community. Football. • v1.0.9</footer>
 </div>
 
 

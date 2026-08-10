@@ -1,4 +1,4 @@
-const APP_VERSION = "1.0.7";
+const APP_VERSION = "1.0.9";
 const firebaseConfig = {
   apiKey: "AIzaSyAh6B75N8AK1TmIXUz1thxzoKxToeztf08",
   authDomain: "intra-squad-sunday-league.firebaseapp.com",
@@ -31,6 +31,32 @@ const TEAM_MEDIA = {
   T2: {logo: "Momo Strikers Logo.png", jersey: "Momo Strikers Jersey.png"},
   T3: {logo: "Jhyap Warriors Logo.png", jersey: "Jhyap Warriors Jersey.png"}
 };
+
+const TEAM_DETAILS = {
+  T1: {owner:"Gyalpo Yonjan",sponsors:["Sunil Thapa","Kshitij Sampang Rai","Sijan Gautam","Abhi Siwakoti"]},
+  T2: {owner:"Udhab KC",sponsors:["Santosh Karki","Sandesh Thapa","Bhupen Shahi","Pratik Shahi"]},
+  T3: {owner:"Rajesh Thapa",sponsors:["Anil Thapa","Aman KC","Mahadev Thapa"]}
+};
+
+const REMAINING_FIXTURE_UPDATES = {
+  M3:{home:"T3",away:"T2",date:"08/16/2026",time:"8:30 AM"},
+  M4:{home:"T3",away:"T1",date:"08/16/2026",time:"9:30 AM"},
+  M5:{home:"T1",away:"T3",date:"08/23/2026",time:"8:30 AM"},
+  M6:{home:"T1",away:"T2",date:"08/23/2026",time:"9:30 AM"}
+};
+
+const FUTURE_EVENTS = [
+  {date:"August 30",icon:"🏆",title:"League Final",details:[]},
+  {date:"September 6",icon:"🏆",title:"Super Cup Final",details:[]},
+  {date:"September 13–20",icon:"⏸️",title:"Break / Player Auction",details:[]},
+  {date:"September 27",icon:"⚽️",title:"New League Season Starts",details:["10-week league format","League-only format"]},
+  {date:"October 11",icon:"🐐",title:"Dashain Khasi Cup",details:["35+ Tournament","Defending champion + 3rd team will remain the same"]},
+  {date:"October 18",icon:"⏸️",title:"Dashain Break",details:[]},
+  {date:"October 25",icon:"⚽️",title:"League Resumes",details:[]},
+  {date:"December 20",icon:"🏆",title:"League Cup Final",details:[]},
+  {date:"December 27",icon:"🏆",title:"Super Cup Final",details:[]},
+  {date:"January 3",icon:"🎉",title:"New Year Cup",details:["11 vs. 11","Married 🆚 Unmarried"]}
+];
 
 const seed = {
   teams: [
@@ -310,7 +336,7 @@ const seed = {
     "id": "M3",
     "week": 2,
     "home": "T3",
-    "away": "T1",
+    "away": "T2",
     "date": "08/16/2026",
     "time": "8:30 AM",
     "venue": "De Anza High School",
@@ -321,7 +347,7 @@ const seed = {
     "id": "M4",
     "week": 2,
     "home": "T3",
-    "away": "T2",
+    "away": "T1",
     "date": "08/16/2026",
     "time": "9:30 AM",
     "venue": "De Anza High School",
@@ -386,7 +412,10 @@ function startLiveData(){
       data = {
         teams: Array.isArray(remote.teams) ? remote.teams : structuredClone(seed.teams),
         players: Array.isArray(remote.players) ? remote.players : structuredClone(seed.players),
-        fixtures: Array.isArray(remote.fixtures) ? remote.fixtures : structuredClone(seed.fixtures),
+        fixtures: (Array.isArray(remote.fixtures) ? remote.fixtures : structuredClone(seed.fixtures)).map(f=>{
+          const update=REMAINING_FIXTURE_UPDATES[f.id];
+          return update && normalizedStatus(f)!=="finished" ? {...f,...update} : f;
+        }),
         events: (Array.isArray(remote.events) ? remote.events : []).map((event,index)=>({
           ...event,
           id: event.id || `LEGACY-${event.matchId||"MATCH"}-${event.createdAtMs||event.minute||0}-${index}`
@@ -605,9 +634,9 @@ function fixtureDetailsHtml(f){
   const finished=normalizedStatus(f)==="finished" && hasScore(f);
   const resultSummary=finished?`<div class="completed-match-summary">
     <div class="result-with-scorers">
-      <div class="result-team result-home"><strong>${teamName(f.home)}</strong>${teamScorersHtml(f,f.home,"left")}</div>
+      <div class="result-team result-home"><strong>${teamName(f.home)}</strong>${completedTeamMatchDetailsHtml(f,f.home,"left")}</div>
       <div class="result-center"><div class="result-score">${Number(f.homeScore)}–${Number(f.awayScore)}</div><span class="badge">Full Time</span><div class="muted">Week ${f.week}${f.date?` • ${f.date}`:""}</div></div>
-      <div class="result-team result-away"><strong>${teamName(f.away)}</strong>${teamScorersHtml(f,f.away,"right")}</div>
+      <div class="result-team result-away"><strong>${teamName(f.away)}</strong>${completedTeamMatchDetailsHtml(f,f.away,"right")}</div>
     </div>
   </div>`:"";
   return `<div class="fixture-details">
@@ -622,6 +651,9 @@ function fixtureDetailsHtml(f){
 
 function mediaForMatch(matchId){
   return matchMedia.filter(m=>String(m.matchId)===String(matchId)).sort((a,b)=>Number(b.createdAtMs||0)-Number(a.createdAtMs||0));
+}
+function mediaForGeneral(){
+  return matchMedia.filter(m=>String(m.matchId||"")==="GENERAL").sort((a,b)=>Number(b.createdAtMs||0)-Number(a.createdAtMs||0));
 }
 function youtubeEmbedUrl(url=""){
   try{
@@ -671,25 +703,32 @@ function renderGallery(){
   const content=document.querySelector("#galleryContent");
   if(!filter||!content)return;
   const previous=filter.value;
-  filter.innerHTML=`<option value="">All matches</option>${data.fixtures.map(f=>`<option value="${f.id}">Week ${f.week} • ${teamName(f.home)} vs ${teamName(f.away)}</option>`).join("")}`;
-  if(data.fixtures.some(f=>f.id===previous))filter.value=previous;
+  filter.innerHTML=`<option value="">All Photos & Videos</option><option value="GENERAL">General League Gallery</option>${data.fixtures.map(f=>`<option value="${f.id}">Week ${f.week} • ${teamName(f.home)} vs ${teamName(f.away)}</option>`).join("")}`;
+  if(previous==="GENERAL" || data.fixtures.some(f=>f.id===previous))filter.value=previous;
   const selected=filter.value;
-  const fixtures=selected?data.fixtures.filter(f=>f.id===selected):data.fixtures.filter(f=>mediaForMatch(f.id).length);
-  if(!fixtures.length){
-    content.innerHTML=`<div class="gallery-empty"><strong>No media yet</strong><div class="muted">Photos and videos added by the admin will appear here.</div></div>`;
-    return;
+  const sections=[];
+  if(!selected || selected==="GENERAL"){
+    const general=mediaForGeneral();
+    if(general.length)sections.push(`<div class="gallery-match-group">
+      <div class="gallery-match-head"><div><strong>📸 General League Gallery</strong><div class="muted">League photos not tied to a specific match</div></div><span class="badge">${general.length} item${general.length===1?"":"s"}</span></div>
+      <div class="gallery-grid">${general.map(item=>mediaItemHtml(item,{admin:isAdmin})).join("")}</div>
+    </div>`);
   }
-  content.innerHTML=fixtures.map(f=>{
-    const items=mediaForMatch(f.id);
-    if(!items.length)return "";
-    return `<div class="gallery-match-group">
-      <div class="gallery-match-head">
-        <div><strong>${teamName(f.home)} vs ${teamName(f.away)}</strong><div class="muted">Week ${f.week}${f.date?` • ${f.date}`:""} • ${normalizedStatus(f)==="finished"?"Full Time":normalizedStatus(f)==="live"?"LIVE":normalizedStatus(f)==="halftime"?"Half Time":"Match Gallery"}</div></div>
-        <span class="badge">${items.length} item${items.length===1?"":"s"}</span>
-      </div>
-      <div class="gallery-grid">${items.map(item=>mediaItemHtml(item)).join("")}</div>
-    </div>`;
-  }).join("");
+  if(selected!=="GENERAL"){
+    const fixtures=selected?data.fixtures.filter(f=>f.id===selected):data.fixtures.filter(f=>mediaForMatch(f.id).length);
+    fixtures.forEach(f=>{
+      const items=mediaForMatch(f.id);
+      if(!items.length)return;
+      sections.push(`<div class="gallery-match-group">
+        <div class="gallery-match-head">
+          <div><strong>${teamName(f.home)} vs ${teamName(f.away)}</strong><div class="muted">Week ${f.week}${f.date?` • ${f.date}`:""} • ${normalizedStatus(f)==="finished"?"Full Time":normalizedStatus(f)==="live"?"LIVE":normalizedStatus(f)==="halftime"?"Half Time":"Match Gallery"}</div></div>
+          <span class="badge">${items.length} item${items.length===1?"":"s"}</span>
+        </div>
+        <div class="gallery-grid">${items.map(item=>mediaItemHtml(item,{admin:isAdmin})).join("")}</div>
+      </div>`);
+    });
+  }
+  content.innerHTML=sections.length?sections.join(""):`<div class="gallery-empty"><strong>No media yet</strong><div class="muted">Photos and videos added by the admin will appear here.</div></div>`;
 }
 function renderAdminGallery(){
   const panel=document.querySelector("#galleryAdminPanel");
@@ -698,10 +737,10 @@ function renderAdminGallery(){
   if(panel)panel.classList.toggle("admin-hidden",!isAdmin);
   if(!matchSel||!list)return;
   const previous=matchSel.value;
-  matchSel.innerHTML=data.fixtures.map(f=>`<option value="${f.id}">Week ${f.week} • ${teamName(f.home)} vs ${teamName(f.away)}</option>`).join("");
-  if(data.fixtures.some(f=>f.id===previous))matchSel.value=previous;
-  const matchId=matchSel.value || data.fixtures[0]?.id;
-  const items=mediaForMatch(matchId);
+  matchSel.innerHTML=`<option value="GENERAL">📸 General League Gallery (all photos)</option>${data.fixtures.map(f=>`<option value="${f.id}">Week ${f.week} • ${teamName(f.home)} vs ${teamName(f.away)}</option>`).join("")}`;
+  if(previous==="GENERAL" || data.fixtures.some(f=>f.id===previous))matchSel.value=previous;
+  const matchId=matchSel.value || "GENERAL";
+  const items=matchId==="GENERAL"?mediaForGeneral():mediaForMatch(matchId);
   list.innerHTML=items.length?items.map(item=>mediaItemHtml(item,{compact:true,admin:true})).join(""):`<div class="muted">No media uploaded for this match.</div>`;
 }
 function safeFileName(name="file"){
@@ -776,9 +815,11 @@ async function deleteGalleryMedia(id){
   if(!isAdmin)return openLogin();
   const item=matchMedia.find(m=>m.id===id);
   if(!item)return;
-  if(!confirm("Remove this photo/video from the match gallery?"))return;
+  if(!confirm(`Remove this ${item.mediaType==="video"?"video":"photo"} from the match gallery?\n\nThis removes it from the league website. It does not delete the original Cloudinary asset.`))return;
   try{
     await mediaRef.doc(id).delete();
+    const progress=document.querySelector("#galleryUploadProgress");
+    if(progress)progress.textContent=`${item.mediaType==="video"?"Video":"Photo"} removed from the match gallery.`;
   }catch(err){alert(err.message||"Unable to remove media.");}
 }
 
@@ -824,6 +865,48 @@ function renderSubstitutionOptions(){
   document.querySelector("#recordSubBtn").disabled=!(["live","paused","halftime"].includes(status) && onField.length && bench.length);
 }
 
+
+let upcomingFixtureSlideIndex=0;
+let upcomingFixtureTimer=null;
+function renderUpcomingFixtureSlide(){
+  const el=document.querySelector("#nextFixture");
+  if(!el)return;
+  const upcoming=window.ISSL_UPCOMING_FIXTURES||[];
+  if(!upcoming.length){el.innerHTML=`<div class="muted">All scheduled fixtures completed.</div>`;return;}
+  if(upcomingFixtureSlideIndex>=upcoming.length)upcomingFixtureSlideIndex=0;
+  const f=upcoming[upcomingFixtureSlideIndex];
+  el.innerHTML=`<div class="upcoming-slide">
+    <div class="upcoming-count">${upcomingFixtureSlideIndex+1} / ${upcoming.length}</div>
+    <div class="upcoming-teams">
+      <div>${logoHtml(f.home)}<strong>${teamName(f.home)}</strong></div>
+      <div class="upcoming-vs">VS</div>
+      <div><strong>${teamName(f.away)}</strong>${logoHtml(f.away)}</div>
+    </div>
+    <div class="upcoming-meta">Week ${f.week} • ${f.date||""}${f.time?` • ${f.time}`:""}${f.venue?`<br>${f.venue}`:""}</div>
+    <div class="upcoming-controls">
+      <button type="button" data-upcoming-prev aria-label="Previous fixture">‹</button>
+      <div class="upcoming-dots">${upcoming.map((_,i)=>`<span class="${i===upcomingFixtureSlideIndex?"active":""}"></span>`).join("")}</div>
+      <button type="button" data-upcoming-next aria-label="Next fixture">›</button>
+    </div>
+  </div>`;
+  if(upcomingFixtureTimer)clearTimeout(upcomingFixtureTimer);
+  if(upcoming.length>1)upcomingFixtureTimer=setTimeout(()=>{upcomingFixtureSlideIndex=(upcomingFixtureSlideIndex+1)%upcoming.length;renderUpcomingFixtureSlide();},4500);
+}
+function moveUpcomingFixture(delta){
+  const upcoming=window.ISSL_UPCOMING_FIXTURES||[];
+  if(!upcoming.length)return;
+  upcomingFixtureSlideIndex=(upcomingFixtureSlideIndex+delta+upcoming.length)%upcoming.length;
+  renderUpcomingFixtureSlide();
+}
+function renderFutureEvents(){
+  const el=document.querySelector("#futureEventsList");
+  if(!el)return;
+  el.innerHTML=FUTURE_EVENTS.map(event=>`<article class="future-event-card">
+    <div class="future-event-date">${event.date}</div>
+    <div class="future-event-main"><span class="future-event-icon">${event.icon}</span><div><strong>${event.title}</strong>${event.details.length?`<ul>${event.details.map(d=>`<li>${d}</li>`).join("")}</ul>`:""}</div></div>
+  </article>`).join("");
+}
+
 function render(){
   const st=standings();
   const played=data.fixtures.filter(f=>hasScore(f)&&normalizedStatus(f)==="finished");
@@ -849,10 +932,9 @@ function render(){
       </div>`).join("")}</div>`:
     `No completed matches yet.`;
 
-  const next=data.fixtures.find(f=>f.status!=="finished" && f.status!=="live" && f.status!=="paused" && f.status!=="halftime");
-  document.querySelector("#nextFixture").innerHTML=next?
-    `<strong>${teamName(next.home)} vs ${teamName(next.away)}</strong><div class="muted">Week ${next.week}${next.date?` • ${next.date}`:""}${next.time?` • ${next.time}`:""}${next.venue?`<br>${next.venue}`:""}</div>`:
-    `All matches completed.`;
+  const upcoming=data.fixtures.filter(f=>!["finished","live","paused","halftime"].includes(normalizedStatus(f)));
+  window.ISSL_UPCOMING_FIXTURES=upcoming;
+  renderUpcomingFixtureSlide();
 
   const scorers=data.players.map(p=>({...p,...statsFor(p.id)})).sort((a,b)=>b.goals-a.goals||b.assists-a.assists);
   const playersWithGoals=scorers.filter(p=>p.goals>0);
@@ -900,6 +982,10 @@ function render(){
       <div class="team-media">
         <div class="jersey-wrap">${media.jersey?`<img class="team-jersey-img" src="${encodeURI(media.jersey)}" alt="${t.name} jersey">`:`<div class="muted">Jersey image unavailable</div>`}</div>
         <div class="squad">
+          ${(()=>{const d=TEAM_DETAILS[t.id]||{};return `<div class="team-management-info">
+            <div><span>Team Owner</span><strong>${d.owner||"—"}</strong></div>
+            <div><span>Sponsors</span><strong>${(d.sponsors||[]).join(", ")||"—"}</strong></div>
+          </div>`})()}
           <h4>Players & Statistics</h4>
           <ul class="team-player-list">${ps.map(p=>{
             const s=statsFor(p.id);
@@ -923,6 +1009,7 @@ function render(){
   renderControlCenter();
   renderEventManager();
   renderTeamManager();
+  renderFutureEvents();
   const liveStandingsToggle=document.querySelector("#liveStandingsToggle");
   if(liveStandingsToggle) liveStandingsToggle.checked=data.settings?.liveStandings!==false;
 }
@@ -1052,6 +1139,27 @@ function teamScorersHtml(f, teamId, align="left"){
     return `<div class="team-scorer-line"><span>${p?.name||"Unknown player"}${e.type==="Own Goal"?` <span class="og-tag">OG</span>`:""} <strong>${Number(e.minute||0)}'</strong></span></div>`;
   }).join("")}</div>`;
 }
+
+function teamCardsHtml(f,teamId){
+  const cards=matchEvents(f.id).filter(e=>{
+    if(!["Yellow Card","Red Card"].includes(e.type))return false;
+    const p=data.players.find(x=>x.id===e.playerId);
+    return (e.teamId || p?.teamId || "")===teamId;
+  });
+  if(!cards.length)return `<div class="team-cards-empty">No cards</div>`;
+  return `<div class="team-card-events">${cards.map(e=>{
+    const p=data.players.find(x=>x.id===e.playerId);
+    const cls=e.type==="Red Card"?"red-card-detail":"yellow-card-detail";
+    return `<div class="team-card-line"><span class="${cls}"></span><span>${p?.name||"Unknown player"} <strong>${Number(e.minute||0)}'</strong></span></div>`;
+  }).join("")}</div>`;
+}
+function completedTeamMatchDetailsHtml(f,teamId,align="left"){
+  return `<div class="completed-team-events">
+    <div class="completed-event-label">Goals</div>${teamScorersHtml(f,teamId,align)}
+    <div class="completed-event-label">Cards</div>${teamCardsHtml(f,teamId)}
+  </div>`;
+}
+
 function renderLiveMatch(){
   const panel=document.querySelector("#liveMatchPanel"); if(!panel)return;
   const f=activeMatch(); panel.classList.toggle("visible",Boolean(f)); if(!f)return;
@@ -1514,6 +1622,10 @@ document.querySelector("#restoreLeagueBackupFile")?.addEventListener("change",e=
   setBackupStatus(file?`Selected backup: ${file.name}`:"No backup selected.");
 });
 
+document.addEventListener("click",e=>{
+  if(e.target.closest("[data-upcoming-prev]"))moveUpcomingFixture(-1);
+  if(e.target.closest("[data-upcoming-next]"))moveUpcomingFixture(1);
+});
 document.querySelector("#galleryMatchFilter")?.addEventListener("change",renderGallery);
 document.querySelector("#galleryUploadMatch")?.addEventListener("change",renderAdminGallery);
 document.querySelector("#galleryPhotoUploadBtn")?.addEventListener("click",uploadGalleryPhotos);
@@ -1677,7 +1789,7 @@ auth.onAuthStateChanged(user=>{
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeLogin();closePlayerProfile();}});
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("sw.js?v=1.0.7").then(reg=>{
+  navigator.serviceWorker.register("sw.js?v=1.0.9").then(reg=>{
     reg.update().catch(()=>{});
     reg.addEventListener("updatefound",()=>{
       const worker=reg.installing;

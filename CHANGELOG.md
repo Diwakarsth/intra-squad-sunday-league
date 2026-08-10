@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.0.9 — Gallery, Schedule, Teams & Future Events
+- Added General League Gallery uploads while keeping match-specific photo uploads.
+- Updated remaining August 16 and August 23 fixtures; August 30 Final remains unchanged.
+- Added Team Owner and Sponsors above each team player list.
+- Added Future Events tab with the August 30 through January 3 schedule.
+- Replaced Next Match with an auto-sliding Upcoming Fixtures card showing all remaining fixtures.
+- Completed fixture details now show goals and yellow/red cards under the respective team with event minutes.
+- Existing finished match data remains untouched; schedule changes apply only to unfinished M3–M6 fixtures.
+
+
+
+## v1.0.8 — Gallery Remove Photo
+- Admins now see **Remove Photo / Remove Video** directly on each item in the Gallery tab.
+- Removing one Gallery item deletes only that Firestore Gallery record, so other uploaded photos remain untouched.
+- Added a confirmation message before removal.
+- Existing Cloudinary files are not deleted by the browser; only the selected item is removed from the league website.
+
+
+
 ## v1.0.7 — Visible Scores & Scorer Minutes
 - Changed every match/result score to the same high-contrast blue so scores remain visible on the dark theme.
 - Goal minute now appears immediately after each scorer name.

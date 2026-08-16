@@ -1,4 +1,4 @@
-const APP_VERSION = "1.0.11";
+const APP_VERSION = "1.0.12";
 const firebaseConfig = {
   apiKey: "AIzaSyAh6B75N8AK1TmIXUz1thxzoKxToeztf08",
   authDomain: "intra-squad-sunday-league.firebaseapp.com",
@@ -950,7 +950,7 @@ function render(){
 
   document.querySelector("#topScorersFull").innerHTML=playersWithGoals.length?playersWithGoals.map((p,i)=>{
     const rankClass=i===0?"gold":i===1?"silver":i===2?"bronze":"";
-    return `<div class="scorer-row profile-clickable" data-player-profile="${p.id}"><div class="scorer-rank ${rankClass}">${i+1}</div><div><strong>${p.name}</strong><div class="muted">${logoHtml(p.teamId,p.name)}${teamName(p.teamId)} • ${p.assists} assist${p.assists===1?"":"s"}</div></div><div class="goal-total">${p.goals}<small>Goals</small></div></div>`;
+    return `<div class="scorer-row profile-clickable" data-player-profile="${p.id}"><div class="scorer-rank ${rankClass}">${i+1}</div><div><strong>${p.name}</strong><div class="muted">${logoHtml(p.teamId,p.name)}${teamName(p.teamId)} • ${p.assists} assist${p.assists===1?"":"s"}</div></div><div class="goal-total"><strong class="goal-number">${p.goals}</strong><small>GOALS</small></div></div>`;
   }).join(""):`<div class="muted">No goals have been recorded. Admin can add goals from the Admin tab.</div>`;
 
   document.querySelector("#fixtureList").innerHTML=data.fixtures.map(f=>{
@@ -1802,7 +1802,7 @@ auth.onAuthStateChanged(user=>{
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeLogin();closePlayerProfile();}});
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("sw.js?v=1.0.11").then(reg=>{
+  navigator.serviceWorker.register("sw.js?v=1.0.12").then(reg=>{
     reg.update().catch(()=>{});
     reg.addEventListener("updatefound",()=>{
       const worker=reg.installing;

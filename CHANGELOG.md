@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.0.12 — Top Scorers Visibility
+- Increased goal-total contrast and size on the Top Scorers page.
+- Goal numbers now use a dedicated bright-blue style.
+- Improved the mobile scorer-row grid so the goal total stays fully visible on narrow phone screens.
+- GOALS label remains directly below each number.
+
+
+
 ## v1.0.11 — Gallery Remove Action Fix
 - Fixed the actual Remove Photo issue: the click handler previously existed only inside the Admin media-management list.
 - Added a global delegated Gallery remove handler so dynamically rendered Remove Photo / Remove Video buttons work from the main Gallery and other Gallery views.

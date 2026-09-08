@@ -1,4 +1,4 @@
-const APP_VERSION = "1.1.0";
+const APP_VERSION = "1.1.1";
 const firebaseConfig = {
   apiKey: "AIzaSyAh6B75N8AK1TmIXUz1thxzoKxToeztf08",
   authDomain: "intra-squad-sunday-league.firebaseapp.com",
@@ -35,7 +35,7 @@ let selectedCompetitionId = localStorage.getItem("issl-selected-competition") ||
 let unsubscribeCompetitionConfig = null;
 let competitionConfigLoaded = false;
 
-function competitionById(id){ return competitions.find(c=>c.id===id) || DEFAULT_COMPETITIONS.find(c=>c.id===id); }
+function competitionById(id){ return competitions.find(c=>c.id===id); }
 function competitionDocRef(id){ return id==="S1_LEAGUE" ? db.collection("league").doc("current") : db.collection("league").doc(`competition_${id}`); }
 function competitionLabel(id=selectedCompetitionId){ const c=competitionById(id); return c?.fullName || c?.name || "Competition"; }
 function competitionShortLabel(id=selectedCompetitionId){ const c=competitionById(id); return c?.parentSeason ? `${c.parentSeason} • ${c.name}` : (c?.name||"Competition"); }
@@ -475,7 +475,7 @@ function startCompetitionConfig(){
 function renderCompetitionUI(){
   const current=competitionById(selectedCompetitionId)||DEFAULT_COMPETITIONS[0];
   const context=document.querySelector("#competitionContextName"); if(context)context.textContent=competitionShortLabel();
-  const homeTitle=document.querySelector("#homeCompetitionTitle"); if(homeTitle)homeTitle.textContent=competitionLabel();
+  const homeTitle=document.querySelector("#homeCompetitionTitle"); if(homeTitle)homeTitle.textContent=competitionShortLabel();
   const homeMeta=document.querySelector("#homeCompetitionMeta"); if(homeMeta)homeMeta.textContent=`${current?.format||"Competition"}${current?.startDate?` • ${current.startDate}${current.endDate&&current.endDate!==current.startDate?` – ${current.endDate}`:""}`:""}`;
   [["fixturesCompetitionName","Fixtures"],["standingsCompetitionName","Standings"],["teamsCompetitionName","Teams"],["statsCompetitionName","Stats"]].forEach(([id])=>{const el=document.querySelector("#"+id);if(el)el.textContent=competitionShortLabel();});
   const groups=[...new Set(competitions.map(c=>c.group||"Other Competitions"))];
@@ -1608,9 +1608,10 @@ function renderTeamManager(){
   const destinationLabel=document.querySelector("#transferTeamLabel");
   const existingFields=document.querySelector("#existingPlayerFields");
   const addFields=document.querySelector("#addPlayerFields");
+  const editFields=document.querySelector("#editPlayerFields");
   const applyBtn=document.querySelector("#applyPlayerManagementBtn");
   const summary=document.querySelector("#managePlayerSummary");
-  if(!teamSelect||!playerSelect||!actionSelect||!destinationSelect||!destinationLabel||!existingFields||!addFields||!applyBtn||!summary)return;
+  if(!teamSelect||!playerSelect||!actionSelect||!destinationSelect||!destinationLabel||!existingFields||!addFields||!editFields||!applyBtn||!summary)return;
   const teamId=selectedManagedTeamId();
   const players=activePlayersForTeam(teamId);
   const previousPlayer=playerSelect.value;
@@ -1620,19 +1621,27 @@ function renderTeamManager(){
   if(players.some(p=>String(p.id)===String(previousPlayer)))playerSelect.value=previousPlayer;
   const action=actionSelect.value || "add";
   const adding=action==="add";
+  const editing=action==="edit";
   existingFields.style.display=adding?"none":"grid";
   addFields.style.display=adding?"block":"none";
+  editFields.style.display=editing?"block":"none";
   const isTransfer=action==="transfer";
   destinationLabel.style.display=isTransfer?"block":"none";
   const previousDestination=destinationSelect.value;
   const destinations=data.teams.filter(t=>t.id!==teamId);
   destinationSelect.innerHTML=destinations.map(t=>`<option value="${t.id}">${t.name}</option>`).join("");
   if(destinations.some(t=>t.id===previousDestination))destinationSelect.value=previousDestination;
-  const labels={add:"Add player",remove:"Remove selected player",transfer:"Transfer selected player",captain:"Make selected player captain"};
+  const labels={add:"Add player",edit:"Save player changes",remove:"Remove selected player",transfer:"Transfer selected player",captain:"Make selected player captain"};
   applyBtn.textContent=labels[action]||"Apply change";
   const player=selectedManagedPlayer();
   applyBtn.disabled=!adding && !player;
-  if(adding){summary.textContent=`Add a new player permanently to ${teamName(teamId)}.`;return;}
+  if(adding){summary.textContent=`Add a new player to ${teamName(teamId)} for ${competitionShortLabel()}.`;return;}
+  if(editing && player){
+    document.querySelector("#manageEditPlayerName").value=player.name||"";
+    document.querySelector("#manageEditPlayerNumber").value=player.number||"";
+    document.querySelector("#manageEditPlayerPosition").value=player.position||"";
+    summary.textContent=`Edit ${player.name}'s competition roster details.`;return;
+  }
   if(action==="captain"){
     const captain=players.find(p=>p.captain);
     summary.textContent=captain?`Current captain: ${captain.name}. Select another player to replace them.`:"No captain is currently selected.";
@@ -1656,6 +1665,13 @@ async function applyPlayerManagement(){
     document.querySelector("#manageNewPlayerPosition").value="";
   }else{
     const player=selectedManagedPlayer();
+    if(!player)return alert("Select a player first.");
+    if(action==="edit"){
+      const name=document.querySelector("#manageEditPlayerName")?.value.trim();if(!name)return alert("Enter the player's name.");
+      player.name=name;player.number=document.querySelector("#manageEditPlayerNumber")?.value||"";player.position=document.querySelector("#manageEditPlayerPosition")?.value.trim()||"";player.updatedAtMs=Date.now();
+      try{render();await save();flash();}catch(err){alert(err.message);}return;
+    }
+
     if(!player)return alert("Select a player first.");
     const oldTeamId=player.teamId;
     preservePlayerEventTeam(player.id,oldTeamId);
@@ -1700,6 +1716,7 @@ async function saveSelectedCompetitionStatus(){
   const id=document.querySelector("#adminCompetitionSelect")?.value||selectedCompetitionId;
   const status=document.querySelector("#adminCompetitionStatus")?.value||"upcoming";
   const c=competitions.find(x=>x.id===id);if(!c)return;
+  if(id===currentCompetitionId && status!=="current")return alert("Set another competition as Current before changing this competition to another status.");
   c.status=status;
   if(status==="current"){
     currentCompetitionId=id;
@@ -1717,6 +1734,75 @@ async function setSelectedCompetitionCurrent(){
   competitions.forEach(c=>{if(c.id===id)c.status="current";else if(c.status==="current")c.status="upcoming";});
   await persistCompetitionConfig();renderCompetitionUI();
   document.querySelector("#competitionAdminStatus").textContent=`${competitionById(id)?.name||id} is now the default current competition.`;
+}
+
+
+function fixtureDateObject(value=""){
+  const m=String(value).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m){const d=new Date(Number(m[3]),Number(m[1])-1,Number(m[2]));return Number.isNaN(d.getTime())?null:d;}
+  const iso=String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(iso){const d=new Date(Number(iso[1]),Number(iso[2])-1,Number(iso[3]));return Number.isNaN(d.getTime())?null:d;}
+  return null;
+}
+function friendlyCompetitionDate(d){
+  return new Intl.DateTimeFormat("en-US",{month:"short",day:"numeric",year:"numeric"}).format(d);
+}
+async function syncCompetitionDatesFromFixtures(){
+  const c=competitions.find(x=>x.id===selectedCompetitionId);if(!c||selectedCompetitionId==="S1_LEAGUE")return;
+  const dates=(data.fixtures||[]).map(f=>fixtureDateObject(f.date)).filter(Boolean).sort((a,b)=>a-b);
+  const start=dates.length?friendlyCompetitionDate(dates[0]):"TBD";
+  const end=dates.length?friendlyCompetitionDate(dates[dates.length-1]):"TBD";
+  if(c.startDate===start && c.endDate===end)return;
+  c.startDate=start;c.endDate=end;
+  await persistCompetitionConfig();
+  renderCompetitionUI();
+}
+function competitionFormatForType(type){
+  return ({league:"League",league_final:"League + Final",super_cup:"Super Cup",special:"Special / Other"})[type]||"Competition";
+}
+function competitionSlug(name){
+  const base=String(name||"COMPETITION").toUpperCase().replace(/[^A-Z0-9]+/g,"_").replace(/^_+|_+$/g,"").slice(0,30)||"COMPETITION";
+  let id=base;let n=2;while(competitionById(id)){id=`${base}_${n++}`;}return id;
+}
+async function createCompetitionFromAdmin(){
+  if(!isAdmin)return openLogin();
+  const name=document.querySelector("#newCompetitionName")?.value.trim();if(!name)return alert("Enter a competition name.");
+  const group=document.querySelector("#newCompetitionGroup")?.value.trim()||"Other Tournaments";
+  const type=document.querySelector("#newCompetitionType")?.value||"special";
+  const icon=document.querySelector("#newCompetitionIcon")?.value.trim()||"🏆";
+  const id=competitionSlug(name);
+  const c={id,group,parentSeason:group.toLowerCase().startsWith("season ")?group.replace(/\s*\(.*/,""):"",name,fullName:name,icon,type,status:"upcoming",startDate:"TBD",endDate:"TBD",format:competitionFormatForType(type),description:type==="league_final"?"League stage followed by a Final between the top two teams.":`${competitionFormatForType(type)} competition.`};
+  if(!confirm(`Create ${name}?\n\nAn empty competition will be created with the three team identities. You can then add players and fixtures from Admin.`))return;
+  competitions.push(c);
+  await persistCompetitionConfig();
+  await competitionDocRef(id).set({...emptyCompetitionData(),competitionId:id,createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+  document.querySelector("#newCompetitionName").value="";
+  selectedCompetitionId=id;localStorage.setItem("issl-selected-competition",id);leagueRef=competitionDocRef(id);
+  renderCompetitionUI();startLiveData();renderGallery();renderAdminGallery();
+  document.querySelector("#competitionAdminStatus").textContent=`${name} created. Add its players and fixtures below.`;
+}
+async function deleteCompetitionFromAdmin(){
+  if(!isAdmin)return openLogin();
+  const id=document.querySelector("#adminCompetitionSelect")?.value||selectedCompetitionId;
+  const c=competitionById(id);if(!c)return;
+  if(id==="S1_LEAGUE")return alert("Season 1 League is protected and cannot be deleted.");
+  if(id===currentCompetitionId)return alert("This is the current competition. Set another competition as Current before deleting it.");
+  let raw=null;try{const snap=await competitionDocRef(id).get();if(snap.exists)raw=snap.data();}catch{}
+  const fixtures=Array.isArray(raw?.fixtures)?raw.fixtures:[];
+  const events=Array.isArray(raw?.events)?raw.events:[];
+  const hasPlayed=fixtures.some(f=>["finished","completed","live","paused","halftime"].includes(String(f.status||"").toLowerCase()))||events.length>0;
+  if(hasPlayed)return alert("This competition already contains played-match data or recorded events. Mark it Completed or Cancelled instead of deleting its history.");
+  const typed=prompt(`Permanent delete: type the competition name exactly to confirm.\n\n${c.name}`);
+  if(typed!==c.name)return alert("Competition was not deleted.");
+  try{
+    const mediaSnap=await mediaRef.where("competitionId","==",id).get();
+    const batch=db.batch();mediaSnap.docs.forEach(doc=>batch.delete(doc.ref));batch.delete(competitionDocRef(id));await batch.commit();
+    competitions=competitions.filter(x=>x.id!==id);
+    await persistCompetitionConfig();
+    if(selectedCompetitionId===id){selectedCompetitionId=currentCompetitionId;localStorage.setItem("issl-selected-competition",selectedCompetitionId);leagueRef=competitionDocRef(selectedCompetitionId);startLiveData();}
+    renderCompetitionUI();filterMediaForSelectedCompetition();renderGallery();renderAdminGallery();
+    document.querySelector("#competitionAdminStatus").textContent=`${c.name} deleted. Cloudinary originals, if any, are not deleted from Cloudinary.`;
+  }catch(err){alert(`Unable to delete competition: ${err.message}`);}
 }
 
 function toDateInputValue(value=""){
@@ -1771,12 +1857,15 @@ async function saveManagedFixture(){
   const payload={week:Number(document.querySelector("#fixtureManageWeek")?.value||1),home,away,date:fromDateInputValue(document.querySelector("#fixtureManageDate")?.value||""),time:fromTimeInputValue(document.querySelector("#fixtureManageTime")?.value||""),venue:document.querySelector("#fixtureManageVenue")?.value.trim()||"",homeScore:null,awayScore:null,status:"scheduled",isFinal};
   if(existingId&&existingId!=="NEW"){const i=data.fixtures.findIndex(f=>f.id===existingId);if(i>=0)data.fixtures[i]={...data.fixtures[i],...payload};}
   else{payload.id=`${isFinal?"FINAL":"M"}-${Date.now()}`;data.fixtures.push(payload);}
-  await save();render();flash();
+  await save();await syncCompetitionDatesFromFixtures();render();flash();
 }
 async function deleteManagedFixture(){
   if(!isAdmin)return openLogin();const id=document.querySelector("#fixtureManageSelect")?.value;if(!id||id==="NEW")return alert("Choose a fixture to delete.");
-  const f=data.fixtures.find(x=>x.id===id);if(!f)return;if(!confirm(`Delete ${teamName(f.home)} vs ${teamName(f.away)} from ${competitionShortLabel()}?`))return;
-  data.fixtures=data.fixtures.filter(x=>x.id!==id);data.events=data.events.filter(e=>e.matchId!==id);await save();render();flash();
+  const f=data.fixtures.find(x=>x.id===id);if(!f)return;
+  const status=normalizedStatus(f),hasEvents=data.events.some(e=>e.matchId===id);
+  if(status!=="scheduled"||hasEvents)return alert("This fixture already has match activity. Reset/clear the match data first instead of deleting recorded history.");
+  if(!confirm(`Delete ${teamName(f.home)} vs ${teamName(f.away)} from ${competitionShortLabel()}?`))return;
+  data.fixtures=data.fixtures.filter(x=>x.id!==id);await save();await syncCompetitionDatesFromFixtures();render();flash();
 }
 
 function fillSelects(){
@@ -1820,6 +1909,8 @@ document.querySelectorAll(".stats-tab[data-stats-panel]").forEach(btn=>btn.addEv
 document.querySelector("#adminCompetitionSelect")?.addEventListener("change",e=>{const c=competitionById(e.target.value);const st=document.querySelector("#adminCompetitionStatus");if(st)st.value=competitionStatus(c);});
 document.querySelector("#switchAdminCompetitionBtn")?.addEventListener("click",()=>{const id=document.querySelector("#adminCompetitionSelect")?.value;if(id)switchCompetition(id);});
 document.querySelector("#initializeCompetitionBtn")?.addEventListener("click",()=>initializeSelectedCompetition().catch(err=>alert(err.message)));
+document.querySelector("#deleteCompetitionBtn")?.addEventListener("click",()=>deleteCompetitionFromAdmin().catch(err=>alert(err.message)));
+document.querySelector("#createCompetitionForm")?.addEventListener("submit",e=>{e.preventDefault();createCompetitionFromAdmin().catch(err=>alert(err.message));});
 document.querySelector("#saveCompetitionStatusBtn")?.addEventListener("click",()=>saveSelectedCompetitionStatus().catch(err=>alert(err.message)));
 document.querySelector("#setCurrentCompetitionBtn")?.addEventListener("click",()=>setSelectedCompetitionCurrent().catch(err=>alert(err.message)));
 document.querySelector("#fixtureManageSelect")?.addEventListener("change",loadFixtureManagerFields);
@@ -2142,7 +2233,7 @@ document.querySelector("#playerProfileModal")?.addEventListener("click",e=>{
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeLogin();closePlayerProfile();}});
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("sw.js?v=1.1.0").then(reg=>{
+  navigator.serviceWorker.register("sw.js?v=1.1.1").then(reg=>{
     reg.update().catch(()=>{});
     reg.addEventListener("updatefound",()=>{
       const worker=reg.installing;

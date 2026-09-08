@@ -1,8 +1,12 @@
-# Deploy v1.1.0 to GitHub Pages / Netlify
+# Deploy v1.1.1 to GitHub first
 
-1. Download a League Backup from the current Admin panel before deployment.
-2. Upload/commit **all files in this ZIP** to the repository root, replacing the previous release files.
-3. Keep `firestore.rules` unchanged unless your live Firebase rules are older than the included file. The multi-competition data stays under `/league/*`, so the existing admin-only write rule continues to work.
-4. Wait for GitHub Pages / Netlify to finish the deploy.
-5. Open the live site once in a normal browser and once on mobile/PWA. If an installed PWA shows the old build, close and reopen it; v1.1.0 uses a new cache name and version check.
-6. Log in as admin and verify Season 1 League data before initializing any new competition.
+1. Download a league backup from the current website before changing production files.
+2. Keep Netlify Auto Deploy OFF while testing.
+3. Upload/commit **all files inside this v1.1.1 ZIP** to the GitHub repository root, replacing the previous release files.
+4. No Firestore rule change is required if the existing rules already allow admin writes under `/league/*` and `/matchMedia/*`.
+5. Test the GitHub/Pages preview on desktop and phone.
+6. Log in as Admin and verify **Season 1 • League** still shows the existing data. Do not restore a backup if the data appears normally.
+7. Test creating a temporary empty competition, adding a player, adding/editing a fixture, and confirming the displayed competition dates update automatically. Delete the temporary competition before production if desired.
+8. After testing, manually deploy the same files to Netlify.
+
+Installed PWAs use cache `issl-v1.1.1` and the version checker will refresh stale app files.

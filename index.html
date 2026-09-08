@@ -434,7 +434,7 @@
     .final-auto-note{font-size:11px;color:#7dd3fc;margin-top:4px}
     .final-resolution-banner{margin-bottom:12px;padding:10px 12px;border:1px solid rgba(125,211,252,.35);border-radius:10px;background:rgba(125,211,252,.06);font-size:12px;font-weight:800;color:#d9f5ff}
 
-    /* ===== v1.1.0 Multi-Competition Interface ===== */
+    /* ===== v1.1.1 Multi-Competition Interface ===== */
     .competition-context-wrap{display:flex;justify-content:center;margin:12px 0}
     .competition-context{border:1px solid #1aa864;background:#071b24;color:#dfffee;border-radius:12px;padding:10px 16px;cursor:pointer;box-shadow:0 7px 22px rgba(0,0,0,.16)}
     .competition-context .context-label{color:#9bb4c9;margin-right:5px}.competition-context strong{color:#72efad}
@@ -464,6 +464,47 @@
     .competition-admin-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.competition-admin-actions .btn{flex:1;min-width:170px}
     .qualification-row td{border-bottom:2px dashed #25d56f!important}.qualification-note{padding:8px 10px;color:#76e7a2;font-size:11px;font-weight:900;text-align:center}
     @media(max-width:700px){.app{padding:0 8px}.brand-copy h1{font-size:17px!important}.brand-copy p{font-size:9px!important;letter-spacing:.1em!important}.league-logo{width:48px;height:48px}.header-actions{gap:5px}.install-btn,.login-btn{padding:9px 10px!important;font-size:11px!important}.primary-nav{position:fixed;bottom:0;left:0;right:0;top:auto;z-index:70;margin:0;border-radius:0;border-width:1px 0 0;background:rgba(3,10,20,.98);padding-bottom:env(safe-area-inset-bottom)}.primary-nav button{flex-direction:column;gap:2px;padding:8px 4px!important;font-size:17px}.primary-nav button span{font-size:10px}.competition-context-wrap{margin:8px 0}.competition-context{width:100%;font-size:12px}.hero{margin-bottom:10px}.more-menu{grid-template-columns:1fr}.competition-overview-hero{grid-template-columns:1fr}.competition-switcher-modal{align-items:flex-end;padding:0}.competition-switcher-sheet{width:100%;border-radius:20px 20px 0 0;padding-bottom:calc(18px + env(safe-area-inset-bottom))}footer{display:none}main{padding-bottom:86px}}
+  
+    /* ===== v1.1.1 Clean Mobile Home + safer Admin ===== */
+    body{overflow-x:hidden}
+    .app,main,section,.home-dashboard,.home-dashboard>*{min-width:0;max-width:100%}
+    #home .home-no-live{padding:18px 14px;margin-bottom:12px}
+    #home .home-no-live h2{font-size:clamp(19px,5vw,26px);line-height:1.15}
+    #home .home-no-live p{font-size:12px;line-height:1.45}
+    .status-chip.cancelled{background:#5a2530;color:#ffd7dc}
+    .competition-admin-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .competition-admin-actions .btn{flex:1 1 170px}
+    @media(max-width:700px){
+      main{padding-left:4px;padding-right:4px}
+      .competition-context-wrap{margin:8px 0 10px}
+      .competition-context{width:100%;text-align:center;padding:9px 10px}
+      #home .home-dashboard{gap:10px}
+      #home .card{padding:12px;border-radius:14px}
+      #home .home-card-title{gap:6px}
+      #home .home-card-title h3{font-size:15px}
+      #home .quick-links{grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+      #home .quick-link{min-height:82px;padding:10px}
+      #home .quick-link .qicon{font-size:23px;width:30px}
+      #home .quick-link strong{font-size:12px}
+      #home .quick-link span span{font-size:10px}
+      #home .home-standings{overflow:hidden}
+      #home .home-standings .standings-scroll{overflow:visible}
+      #home .home-standings table{width:100%;min-width:0!important;table-layout:fixed;font-size:10px}
+      #home .home-standings th,#home .home-standings td{padding:7px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      #home .home-standings th:nth-child(1),#home .home-standings td:nth-child(1){width:22px}
+      #home .home-standings th:nth-child(2),#home .home-standings td:nth-child(2){width:34%;min-width:0!important;white-space:nowrap}
+      #home .home-standings th:nth-child(n+3),#home .home-standings td:nth-child(n+3){width:auto}
+      #home .home-standings .mini-team-logo{display:none}
+      .row{grid-template-columns:1fr}
+      .competition-admin-actions{display:grid;grid-template-columns:1fr}
+      .competition-admin-actions .btn{width:100%}
+    }
+    @media(max-width:390px){
+      #home .home-standings table{font-size:9px}
+      #home .home-standings th,#home .home-standings td{padding:6px 1px}
+      #home .quick-links{grid-template-columns:1fr}
+    }
+
   </style>
 </head>
 <body>
@@ -535,8 +576,7 @@
         </div>
       </div>
       <div id="homeNoLive" class="home-no-live">
-        <img src="league-logo.png" class="league-mark" alt="League logo">
-        <div class="current-pill">CURRENT VIEW</div><h2 id="homeCompetitionTitle">Intra Squad Sunday League — Season 1 • League</h2>
+        <h2 id="homeCompetitionTitle">Intra Squad Sunday League — Season 1 • League</h2>
         <p id="homeCompetitionMeta">Live scores, fixtures, standings, team sheets and player statistics.</p>
       </div>
       <div class="home-dashboard">
@@ -558,12 +598,10 @@
         </div>
       </div>
       <div class="quick-links">
-        <button class="quick-link" type="button" onclick="document.querySelector('[data-tab=fixtures]').click()"><span class="qicon">◉</span><span><strong>Live Matches</strong><span>Follow real-time scores & events</span></span></button>
-        <button class="quick-link" type="button" onclick="document.querySelector('[data-tab=fixtures]').click()"><span class="qicon">👥</span><span><strong>Lineups</strong><span>Open a live or completed fixture</span></span></button>
-        <button class="quick-link" type="button" onclick="document.querySelector('[data-tab=teams]').click()"><span class="qicon">🛡️</span><span><strong>Teams</strong><span>View teams, jerseys & squads</span></span></button>
-        <button class="quick-link" type="button" onclick="document.querySelector('[data-tab=fixtures]').click()"><span class="qicon"><svg class="neutral-calendar" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"/></svg></span><span><strong>Fixtures</strong><span>All upcoming matches</span></span></button>
-        <button class="quick-link" type="button" data-open-tab="awards"><span class="qicon">🏅</span><span><strong>Awards</strong><span>Season leaders & fair play</span></span></button>
-        <button class="quick-link" type="button" data-open-tab="gallery"><span class="qicon">▣</span><span><strong>Gallery</strong><span>Match photos & videos</span></span></button>
+        <button class="quick-link" type="button" onclick="document.querySelector('[data-tab=fixtures]').click()"><span class="qicon"><svg class="neutral-calendar" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"/></svg></span><span><strong>Fixtures</strong><span>Schedule, live games & results</span></span></button>
+        <button class="quick-link" type="button" onclick="document.querySelector('[data-tab=teams]').click()"><span class="qicon">🛡️</span><span><strong>Teams</strong><span>Squads, jerseys & player profiles</span></span></button>
+        <button class="quick-link" type="button" data-open-tab="top-scorers"><span class="qicon">📈</span><span><strong>Stats</strong><span>Goals, assists, cards & POTM</span></span></button>
+        <button class="quick-link" type="button" data-open-tab="gallery"><span class="qicon">▣</span><span><strong>Gallery</strong><span>Competition photos & videos</span></span></button>
       </div>
     </section>
 
@@ -692,13 +730,23 @@
         <div class="muted">Choose the competition you are editing. Each competition has its own roster, fixtures, events, stats and gallery.</div>
         <div class="row" style="margin-top:12px">
           <label>Competition<select id="adminCompetitionSelect"></select></label>
-          <label>Status<select id="adminCompetitionStatus"><option value="upcoming">Upcoming</option><option value="current">Current</option><option value="completed">Completed</option></select></label>
+          <label>Status<select id="adminCompetitionStatus"><option value="upcoming">Upcoming</option><option value="current">Current</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label>
         </div>
         <div class="competition-admin-actions">
           <button id="switchAdminCompetitionBtn" class="btn secondary" type="button">Open Competition</button>
           <button id="saveCompetitionStatusBtn" class="btn secondary" type="button">Save Status</button>
           <button id="setCurrentCompetitionBtn" class="btn success" type="button">Set as Current</button>
           <button id="initializeCompetitionBtn" class="btn" type="button">Initialize Empty Competition</button>
+          <button id="deleteCompetitionBtn" class="btn danger" type="button">Delete Competition</button>
+        </div>
+        <div class="admin-subsection">
+          <h3>Create New Competition</h3>
+          <div class="muted">Create a future season or tournament without changing the website code. It starts empty so you can add players and fixtures here.</div>
+          <form id="createCompetitionForm" style="margin-top:10px">
+            <div class="row"><label>Name<input id="newCompetitionName" placeholder="Example: Tihar Cup 2026" required></label><label>Group<input id="newCompetitionGroup" placeholder="Example: Other Tournaments"></label></div>
+            <div class="row"><label>Format<select id="newCompetitionType"><option value="league">League</option><option value="league_final">League + Final</option><option value="super_cup">Super Cup</option><option value="special">Special / Other</option></select></label><label>Icon<input id="newCompetitionIcon" value="🏆" maxlength="4"></label></div>
+            <button class="btn secondary" type="submit">Create Competition</button>
+          </form>
         </div>
         <div id="competitionAdminStatus" class="backup-status">Season 1 League remains preserved as the legacy live-data document.</div>
       </div>
@@ -826,6 +874,7 @@
             <label>Team<select id="managePlayerTeam"></select></label>
             <label>Action<select id="managePlayerAction">
               <option value="add">Add player</option>
+              <option value="edit">Edit player</option>
               <option value="remove">Remove from team</option>
               <option value="transfer">Transfer to another team</option>
               <option value="captain">Change captain</option>
@@ -841,6 +890,13 @@
               <label>Jersey number (optional)<input id="manageNewPlayerNumber" type="number" min="1" max="99" placeholder="Leave blank"></label>
             </div>
             <label>Position (optional)<input id="manageNewPlayerPosition" placeholder="Leave blank"></label>
+          </div>
+          <div id="editPlayerFields" style="display:none">
+            <div class="row">
+              <label>Player name<input id="manageEditPlayerName" placeholder="Player name"></label>
+              <label>Jersey number (optional)<input id="manageEditPlayerNumber" type="number" min="1" max="99" placeholder="Leave blank"></label>
+            </div>
+            <label>Position (optional)<input id="manageEditPlayerPosition" placeholder="Leave blank"></label>
           </div>
           <button id="applyPlayerManagementBtn" class="btn secondary" type="submit">Add player</button>
         </form>
@@ -872,7 +928,7 @@
     </section>
   </main>
 
-  <footer>© 2026 Intra Squad Sunday League • Passion. Community. Football. • v1.1.0</footer>
+  <footer>© 2026 Intra Squad Sunday League • Passion. Community. Football. • v1.1.1</footer>
 </div>
 
 
@@ -906,7 +962,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script>
-  window.ISSL_APP_VERSION = "1.1.0";
+  window.ISSL_APP_VERSION = "1.1.1";
   // Keep installed PWAs/phones and desktop browsers on the same deployed release.
   (async()=>{
     try{
@@ -940,6 +996,6 @@
     }catch(e){ console.warn("Version check unavailable",e); }
   })();
 </script>
-<script src="app.js?v=1.1.0"></script>
+<script src="app.js?v=1.1.1"></script>
 </body>
 </html>

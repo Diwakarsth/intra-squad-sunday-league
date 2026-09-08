@@ -1,17 +1,18 @@
-# Intra Squad Sunday League — v1.1.0
+# Intra Squad Sunday League — v1.1.1
 
-This release adds multi-season and multi-competition support while preserving the existing Season 1 League Firestore data in `league/current`.
+Mobile-first multi-competition league website with Firebase live data and Cloudinary gallery uploads.
 
-## Main navigation
-Home • Competitions • Fixtures • Teams • More
+## v1.1.1 highlights
+- Cleaner mobile Home page; the redundant **CURRENT VIEW** badge is removed.
+- Home standings keeps the full table but is compact enough for phone screens.
+- Admin can create future competitions directly from the website.
+- Admin can initialize, set status, open, cancel, or safely delete a competition that never happened.
+- Season 1 League is protected from competition deletion.
+- Competitions containing played-match data/events cannot be permanently deleted; mark them Completed or Cancelled instead.
+- Team Management supports add, edit, remove, transfer, and captain changes for the selected competition roster.
+- Fixture Management supports add, edit/reschedule, and delete.
+- Competition start/end dates automatically follow the earliest and latest fixture dates.
+- League + Final competitions support automatic 1st Place vs 2nd Place finalists.
+- Gallery remains competition-specific and can optionally be tied to a fixture.
 
-A permanent **Viewing: …** competition switcher lets users move between Season 1, Season 2, Super Cups, Dashain Cup 2026 and New Year Cup 2026.
-
-## Data model
-- Season 1 League remains in `league/current` (legacy data preserved).
-- Future competitions use separate documents such as `league/competition_S2_LEAGUE`.
-- Each competition has its own players/roster, fixtures, events, scores, stats and lineups.
-- Gallery records are competition-scoped; old gallery records without a `competitionId` remain attached to Season 1 League.
-- Competition catalog/current selection is stored in `league/config`.
-
-Always download a backup before major admin changes.
+Existing Season 1 Firebase data remains in `league/current` and is not migrated or overwritten by this release.

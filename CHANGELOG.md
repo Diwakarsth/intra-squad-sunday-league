@@ -1,4 +1,31 @@
+# v1.1.0 — Multi-Competition Release
+
+- Added Competition switcher available from every page.
+- Added Competitions hub with Season 1, Season 2, nested Super Cups, Dashain Cup 2026 and New Year Cup 2026.
+- Preserved all existing Season 1 League data in the original `league/current` document.
+- Added separate Firestore documents for future competition data.
+- Added competition-specific rosters, fixtures, events, stats and gallery filtering.
+- Added Admin Competition Management: open competition, initialize empty competition, save status, set current competition.
+- Added Admin Fixture Management for new competitions.
+- Added League + Final support with automatic 1st-place vs 2nd-place finalist resolution.
+- Fixed Final match scoring/lineups/events so placeholder finalists resolve to actual team IDs.
+- Simplified navigation to Home / Competitions / Fixtures / Teams / More.
+- Combined goals, assists, cards and POTM under Stats.
+- Added player profile scopes: This Competition / This Season / Career.
+- Home standings now shows the complete table instead of “Top 3”; mobile tables can scroll horizontally.
+- League + Final standings visually mark the Top 2 qualification line.
+- Gallery uploads now include the selected competition ID; legacy media stays with Season 1.
+- Backup/Restore now operates on the selected competition and its gallery records instead of deleting media from other competitions.
+- New PWA cache/version: 1.1.0.
+
 # Changelog
+
+## v1.0.13 — Automatic Finalists
+- Final displays 1st Place vs 2nd Place while league-stage matches are still in progress.
+- After all six league-stage matches are completed, the Final automatically displays the actual first- and second-place team names and logos from the live standings.
+- No completed match data, goals, cards, Gallery records, standings, or player statistics are reset.
+
+
 
 ## v1.0.12 — Top Scorers Visibility
 - Increased goal-total contrast and size on the Top Scorers page.

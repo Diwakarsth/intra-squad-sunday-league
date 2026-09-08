@@ -1,4 +1,4 @@
-const APP_VERSION = "1.0.12";
+const APP_VERSION = "1.1.0";
 const firebaseConfig = {
   apiKey: "AIzaSyAh6B75N8AK1TmIXUz1thxzoKxToeztf08",
   authDomain: "intra-squad-sunday-league.firebaseapp.com",
@@ -16,13 +16,36 @@ const CLOUDINARY_UPLOAD_PRESET = "intra_squad_gallery";
 
 const auth = firebase.auth();
 const db = firebase.firestore();
-const leagueRef = db.collection("league").doc("current");
+let leagueRef = db.collection("league").doc("current");
+const leagueConfigRef = db.collection("league").doc("config");
 const mediaRef = db.collection("matchMedia");
 const ADMIN_EMAIL = "admin@intrasquadleague.com";
+
+const DEFAULT_COMPETITIONS = [
+  {id:"S2_LEAGUE",group:"Season 2 (2026/27)",parentSeason:"Season 2",name:"League",fullName:"Intra Squad Sunday League — Season 2 • League",icon:"⚽",type:"league",status:"upcoming",startDate:"Sep 27, 2026",endDate:"Nov 22, 2026",format:"League",description:"Season 2 league competition with competition-specific squads and statistics."},
+  {id:"S2_SUPER",group:"Season 2 (2026/27)",parentSeason:"Season 2",name:"Super Cup",fullName:"Intra Squad Sunday League — Season 2 • Super Cup",icon:"🏆",type:"super_cup",status:"upcoming",startDate:"TBD",endDate:"TBD",format:"Super Cup",description:"Season 2 Super Cup."},
+  {id:"S1_LEAGUE",group:"Season 1 (2026)",parentSeason:"Season 1",name:"League",fullName:"Intra Squad Sunday League — Season 1 • League",icon:"⚽",type:"league_final",status:"completed",startDate:"Aug 9, 2026",endDate:"Aug 30, 2026",format:"League + Final",description:"Original Season 1 league data. This competition uses the preserved legacy Firebase document."},
+  {id:"S1_SUPER",group:"Season 1 (2026)",parentSeason:"Season 1",name:"Super Cup",fullName:"Intra Squad Sunday League — Season 1 • Super Cup",icon:"🏆",type:"super_cup",status:"completed",startDate:"Aug 30, 2026",endDate:"Sep 6, 2026",format:"Super Cup",description:"Season 1 Super Cup."},
+  {id:"DASHAIN_2026",group:"Other Tournaments",parentSeason:"",name:"Dashain Cup 2026",fullName:"Dashain Cup 2026",icon:"🐐",type:"league_final",status:"upcoming",startDate:"Oct 11, 2026",endDate:"TBD",format:"League + Final",description:"League stage followed by a Final between the top two teams."},
+  {id:"NEWYEAR_2026",group:"Other Tournaments",parentSeason:"",name:"New Year Cup 2026",fullName:"New Year Cup 2026",icon:"🎉",type:"special",status:"upcoming",startDate:"Jan 3",endDate:"Jan 3",format:"11 v 11",description:"Special New Year Cup competition."}
+];
+let competitions = structuredClone(DEFAULT_COMPETITIONS);
+let currentCompetitionId = "S1_LEAGUE";
+let selectedCompetitionId = localStorage.getItem("issl-selected-competition") || currentCompetitionId;
+let unsubscribeCompetitionConfig = null;
+let competitionConfigLoaded = false;
+
+function competitionById(id){ return competitions.find(c=>c.id===id) || DEFAULT_COMPETITIONS.find(c=>c.id===id); }
+function competitionDocRef(id){ return id==="S1_LEAGUE" ? db.collection("league").doc("current") : db.collection("league").doc(`competition_${id}`); }
+function competitionLabel(id=selectedCompetitionId){ const c=competitionById(id); return c?.fullName || c?.name || "Competition"; }
+function competitionShortLabel(id=selectedCompetitionId){ const c=competitionById(id); return c?.parentSeason ? `${c.parentSeason} • ${c.name}` : (c?.name||"Competition"); }
+function competitionStatus(c){ return String(c?.status||"upcoming").toLowerCase(); }
+
 let isAdmin = false;
 let cloudReady = false;
 let unsubscribeLeague = null;
 let unsubscribeMedia = null;
+let allMatchMedia = [];
 let matchMedia = [];
 let expandedFixtureId = "";
 
@@ -50,7 +73,7 @@ const FUTURE_EVENTS = [
   {date:"September 6",icon:"🏆",title:"Super Cup Final",details:[]},
   {date:"September 13–20",icon:"⏸️",title:"Break / Player Auction",details:[]},
   {date:"September 27",icon:"⚽️",title:"New League Season Starts",details:["10-week league format","League-only format"]},
-  {date:"October 11",icon:"🐐",title:"Dashain Khasi Cup",details:["35+ Tournament","Defending champion + 3rd team will remain the same"]},
+  {date:"October 11",icon:"🐐",title:"Dashain Cup 2026",details:["League + Final","Top 2 teams qualify for the Final"]},
   {date:"October 18",icon:"⏸️",title:"Dashain Break",details:[]},
   {date:"October 25",icon:"⚽️",title:"League Resumes",details:[]},
   {date:"December 20",icon:"🏆",title:"League Cup Final",details:[]},
@@ -394,6 +417,79 @@ const seed = {
 
 let data = structuredClone(seed);
 
+function emptyCompetitionData(){
+  return {teams:structuredClone(seed.teams),players:[],fixtures:[],events:[],settings:{liveStandings:true}};
+}
+function normalizeCompetitionData(remote){
+  const base = selectedCompetitionId==="S1_LEAGUE" ? structuredClone(seed) : emptyCompetitionData();
+  const fixtures=(Array.isArray(remote?.fixtures)?remote.fixtures:base.fixtures).map(f=>{
+    const update=selectedCompetitionId==="S1_LEAGUE" ? REMAINING_FIXTURE_UPDATES[f.id] : null;
+    return update && normalizedStatus(f)!=="finished" ? {...f,...update} : f;
+  });
+  return {
+    teams:Array.isArray(remote?.teams)?remote.teams:base.teams,
+    players:Array.isArray(remote?.players)?remote.players:base.players,
+    fixtures,
+    events:(Array.isArray(remote?.events)?remote.events:[]).map((event,index)=>({...event,id:event.id||`LEGACY-${event.matchId||"MATCH"}-${event.createdAtMs||event.minute||0}-${index}`})),
+    settings:{liveStandings:remote?.settings?.liveStandings!==false}
+  };
+}
+
+function filterMediaForSelectedCompetition(){
+  matchMedia=allMatchMedia.filter(m=>{
+    const cid=String(m.competitionId||"");
+    return cid ? cid===selectedCompetitionId : selectedCompetitionId==="S1_LEAGUE";
+  });
+}
+
+function switchCompetition(id,{openHome=false}={}){
+  if(!competitionById(id))return;
+  selectedCompetitionId=id;
+  localStorage.setItem("issl-selected-competition",id);
+  leagueRef=competitionDocRef(id);
+  expandedFixtureId="";
+  filterMediaForSelectedCompetition();
+  renderCompetitionUI();
+  startLiveData();
+  renderGallery();
+  renderAdminGallery();
+  if(openHome)activateTab("home");
+}
+
+function startCompetitionConfig(){
+  if(unsubscribeCompetitionConfig)unsubscribeCompetitionConfig();
+  unsubscribeCompetitionConfig=leagueConfigRef.onSnapshot(async snap=>{
+    competitionConfigLoaded=true;
+    if(snap.exists){
+      const cfg=snap.data()||{};
+      if(Array.isArray(cfg.competitions)&&cfg.competitions.length)competitions=cfg.competitions;
+      currentCompetitionId=cfg.currentCompetitionId && competitionById(cfg.currentCompetitionId)?cfg.currentCompetitionId:currentCompetitionId;
+      if(!competitionById(selectedCompetitionId))selectedCompetitionId=currentCompetitionId;
+    }else if(isAdmin){
+      await leagueConfigRef.set({competitions:structuredClone(DEFAULT_COMPETITIONS),currentCompetitionId,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    }
+    renderCompetitionUI();
+  },err=>{console.warn("Competition config unavailable",err);renderCompetitionUI();});
+}
+
+function renderCompetitionUI(){
+  const current=competitionById(selectedCompetitionId)||DEFAULT_COMPETITIONS[0];
+  const context=document.querySelector("#competitionContextName"); if(context)context.textContent=competitionShortLabel();
+  const homeTitle=document.querySelector("#homeCompetitionTitle"); if(homeTitle)homeTitle.textContent=competitionLabel();
+  const homeMeta=document.querySelector("#homeCompetitionMeta"); if(homeMeta)homeMeta.textContent=`${current?.format||"Competition"}${current?.startDate?` • ${current.startDate}${current.endDate&&current.endDate!==current.startDate?` – ${current.endDate}`:""}`:""}`;
+  [["fixturesCompetitionName","Fixtures"],["standingsCompetitionName","Standings"],["teamsCompetitionName","Teams"],["statsCompetitionName","Stats"]].forEach(([id])=>{const el=document.querySelector("#"+id);if(el)el.textContent=competitionShortLabel();});
+  const groups=[...new Set(competitions.map(c=>c.group||"Other Competitions"))];
+  const catalog=document.querySelector("#competitionsCatalog");
+  if(catalog)catalog.innerHTML=groups.map(group=>`<div class="competition-group"><div class="competition-group-title">${group}</div>${competitions.filter(c=>(c.group||"Other Competitions")===group).map(c=>`<div class="competition-item ${c.id===selectedCompetitionId?"active":""}" data-competition-id="${c.id}"><div class="competition-icon">${c.icon||"🏆"}</div><div><strong>${c.name}</strong><small>${c.startDate||"TBD"}${c.endDate&&c.endDate!==c.startDate?` – ${c.endDate}`:""} • ${c.format||"Competition"}</small></div><span class="status-chip ${competitionStatus(c)}">${c.id===currentCompetitionId?"Current":competitionStatus(c)}</span></div>`).join("")}</div>`).join("");
+  const overview=document.querySelector("#competitionOverviewCard");
+  if(overview && current)overview.innerHTML=`<div class="competition-overview-hero"><div><div class="muted">Selected Competition</div><h2>${current.icon||"🏆"} ${current.fullName||current.name}</h2><div class="muted">${current.description||""}</div></div><span class="status-chip ${competitionStatus(current)}">${current.id===currentCompetitionId?"Current":competitionStatus(current)}</span></div><div class="competition-format"><strong>Format: ${current.format||"Competition"}</strong>${current.type==="league_final"?`<div class="qualification-flow"><span>League Stage</span><b>→</b><span>Top 2</span><b>→</b><span>Final</span></div><div class="muted" style="margin-top:8px">Positions 1 and 2 qualify for the Final. Final team names resolve automatically when the league stage is complete.</div>`:""}</div><button class="btn" type="button" data-view-selected-competition style="margin-top:12px">View ${current.name}</button>`;
+  const list=document.querySelector("#competitionSwitcherList");
+  if(list)list.innerHTML=competitions.map(c=>`<button class="competition-switch-option ${c.id===selectedCompetitionId?"selected":""}" type="button" data-switch-competition="${c.id}"><span>${c.icon||"🏆"}</span><span><strong>${c.parentSeason?`${c.parentSeason} — `:""}${c.name}</strong><small>${c.format||""}</small></span><span class="status-chip ${competitionStatus(c)}">${c.id===currentCompetitionId?"Current":competitionStatus(c)}</span></button>`).join("");
+  const adminSelect=document.querySelector("#adminCompetitionSelect");
+  if(adminSelect){const old=adminSelect.value;adminSelect.innerHTML=competitions.map(c=>`<option value="${c.id}">${c.parentSeason?`${c.parentSeason} — `:""}${c.name}</option>`).join("");adminSelect.value=competitions.some(c=>c.id===old)?old:selectedCompetitionId;}
+  const statusSel=document.querySelector("#adminCompetitionStatus");if(statusSel){statusSel.value=competitionStatus(competitionById(adminSelect?.value||selectedCompetitionId));}
+}
+
 async function save(){
   if(!isAdmin) throw new Error("Admin login required.");
   await leagueRef.set({ ...data, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
@@ -405,50 +501,40 @@ function setStatus(message){
 
 function startLiveData(){
   if(unsubscribeLeague) unsubscribeLeague();
-  unsubscribeLeague = leagueRef.onSnapshot(async snapshot => {
+  const listeningCompetitionId=selectedCompetitionId;
+  const ref=competitionDocRef(listeningCompetitionId);
+  leagueRef=ref;
+  unsubscribeLeague = ref.onSnapshot(async snapshot => {
+    if(listeningCompetitionId!==selectedCompetitionId)return;
     cloudReady = true;
     if(snapshot.exists){
-      const remote = snapshot.data();
-      data = {
-        teams: Array.isArray(remote.teams) ? remote.teams : structuredClone(seed.teams),
-        players: Array.isArray(remote.players) ? remote.players : structuredClone(seed.players),
-        fixtures: (Array.isArray(remote.fixtures) ? remote.fixtures : structuredClone(seed.fixtures)).map(f=>{
-          const update=REMAINING_FIXTURE_UPDATES[f.id];
-          return update && normalizedStatus(f)!=="finished" ? {...f,...update} : f;
-        }),
-        events: (Array.isArray(remote.events) ? remote.events : []).map((event,index)=>({
-          ...event,
-          id: event.id || `LEGACY-${event.matchId||"MATCH"}-${event.createdAtMs||event.minute||0}-${index}`
-        })),
-        settings: { liveStandings: remote.settings?.liveStandings !== false }
-      };
-      setStatus(isAdmin ? "Admin connected • Live data synced" : "Live public data connected");
+      data = normalizeCompetitionData(snapshot.data());
+      setStatus(isAdmin ? `Admin connected • ${competitionShortLabel()} synced` : `${competitionShortLabel()} • Live data connected`);
       render();
     } else {
-      data = structuredClone(seed);
-      setStatus(isAdmin ? "Admin connected • Initializing live data…" : "Live database ready • Waiting for admin initialization");
+      data = listeningCompetitionId==="S1_LEAGUE" ? structuredClone(seed) : emptyCompetitionData();
+      setStatus(isAdmin ? `Admin connected • ${competitionShortLabel()} not initialized` : `${competitionShortLabel()} • No data yet`);
       render();
-      if(isAdmin){
-        await leagueRef.set({ ...data, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-      }
     }
   }, error => {
     console.error("Firestore listener error", error);
     cloudReady = false;
-    setStatus("Unable to connect to live data");
+    setStatus("Unable to connect to competition data");
   });
 }
 
 function startMediaData(){
   if(unsubscribeMedia) unsubscribeMedia();
   unsubscribeMedia = mediaRef.orderBy("createdAtMs","desc").onSnapshot(snapshot=>{
-    matchMedia = snapshot.docs.map(doc=>({id:doc.id,...doc.data()}));
+    allMatchMedia = snapshot.docs.map(doc=>({id:doc.id,...doc.data()}));
+    filterMediaForSelectedCompetition();
     renderGallery();
     renderAdminGallery();
     renderLiveMatch();
     if(expandedFixtureId) render();
   }, error=>{
     console.warn("Gallery listener error", error);
+    allMatchMedia = [];
     matchMedia = [];
     renderGallery();
     renderAdminGallery();
@@ -470,11 +556,13 @@ async function downloadLeagueBackup(){
   try{
     setBackupStatus("Preparing backup…");
     const mediaSnapshot=await mediaRef.get();
-    const gallery=mediaSnapshot.docs.map(doc=>({id:doc.id,...doc.data()}));
+    const gallery=mediaSnapshot.docs.map(doc=>({id:doc.id,...doc.data()})).filter(m=>m.competitionId?m.competitionId===selectedCompetitionId:selectedCompetitionId==="S1_LEAGUE");
     const backup={
       format:"ISSL_BACKUP",
       backupVersion:1,
       appVersion:APP_VERSION,
+      competitionId:selectedCompetitionId,
+      competition:structuredClone(competitionById(selectedCompetitionId)||{}),
       exportedAt:new Date().toISOString(),
       leagueData:structuredClone(data),
       matchMedia:gallery
@@ -529,10 +617,15 @@ async function restoreLeagueBackup(){
     });
     setBackupStatus("Restoring Gallery records…");
     const current=await mediaRef.get();
-    for(const doc of current.docs)await doc.ref.delete();
+    for(const doc of current.docs){
+      const m=doc.data()||{};
+      const belongs=m.competitionId?m.competitionId===selectedCompetitionId:selectedCompetitionId==="S1_LEAGUE";
+      if(belongs)await doc.ref.delete();
+    }
     for(const item of gallery){
       const {id,...payload}=item||{};
       if(!payload || typeof payload!=="object")continue;
+      if(selectedCompetitionId!=="S1_LEAGUE")payload.competitionId=selectedCompetitionId;
       if(id)await mediaRef.doc(String(id)).set(payload);
       else await mediaRef.add(payload);
     }
@@ -547,8 +640,51 @@ async function restoreLeagueBackup(){
 }
 
 const team = id => data.teams.find(t=>t.id===id);
-const teamName = id => team(id)?.name || (id==="FINAL1"?"1st Place":id==="FINAL2"?"2nd Place":"TBD");
-const teamLogo = id => TEAM_MEDIA[id]?.logo || "";
+
+function isFinalFixture(f){
+  return Boolean(f && (f.isFinal===true || f.id==="F1" || f.home==="FINAL1" || f.away==="FINAL2"));
+}
+function leagueStageFixtures(){
+  return data.fixtures.filter(f=>!isFinalFixture(f));
+}
+function leagueStageComplete(){
+  const fixtures=leagueStageFixtures();
+  return fixtures.length>0 && fixtures.every(f=>normalizedStatus(f)==="finished" && hasScore(f));
+}
+function resolvedFinalists(){
+  if(!leagueStageComplete())return null;
+  const table=standings();
+  if(table.length<2)return null;
+  return {home:table[0].team.id,away:table[1].team.id};
+}
+function actualFixtureTeamId(f,sideOrId){
+  const raw=sideOrId==="home"?f?.home:sideOrId==="away"?f?.away:sideOrId;
+  if(raw==="FINAL1"){const r=resolvedFinalists();return r?.home||"";}
+  if(raw==="FINAL2"){const r=resolvedFinalists();return r?.away||"";}
+  return raw||"";
+}
+function teamName(id){
+  if(id==="FINAL1"){
+    const r=resolvedFinalists();
+    return r?team(r.home)?.name||"1st Place":"1st Place";
+  }
+  if(id==="FINAL2"){
+    const r=resolvedFinalists();
+    return r?team(r.away)?.name||"2nd Place":"2nd Place";
+  }
+  return team(id)?.name || "TBD";
+}
+function teamLogo(id){
+  if(id==="FINAL1"){
+    const r=resolvedFinalists();
+    return r?TEAM_MEDIA[r.home]?.logo||"":"";
+  }
+  if(id==="FINAL2"){
+    const r=resolvedFinalists();
+    return r?TEAM_MEDIA[r.away]?.logo||"":"";
+  }
+  return TEAM_MEDIA[id]?.logo || "";
+}
 const logoHtml = (id, alt="") => teamLogo(id) ? `<img class="mini-team-logo" src="${encodeURI(teamLogo(id))}" alt="${alt || teamName(id)} logo">` : "";
 
 function updateAuthUI(){
@@ -561,15 +697,18 @@ function updateAuthUI(){
   if(!isAdmin && document.querySelector("#admin").classList.contains("active")) activateTab("home");
 }
 function activateTab(tabId){
-  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b.dataset.tab===tabId));
+  const secondary=["standings","top-scorers","awards","gallery","future-events","admin"];
+  const primary=secondary.includes(tabId)?"more":tabId;
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b.dataset.tab===primary));
   document.querySelectorAll("main section").forEach(sec=>sec.classList.toggle("active",sec.id===tabId));
+  window.scrollTo({top:0,behavior:"smooth"});
 }
 
 
 function standings(){
   const s = Object.fromEntries(data.teams.map(t=>[t.id,{team:t,p:0,w:0,d:0,l:0,gf:0,ga:0,gd:0,pts:0}]));
   data.fixtures.filter(f=>{
-    if(f.id==="F1" || !hasScore(f) || !s[f.home] || !s[f.away]) return false;
+    if(isFinalFixture(f) || !hasScore(f) || !s[f.home] || !s[f.away]) return false;
     const status=normalizedStatus(f);
     return status==="finished" || (data.settings?.liveStandings!==false && ["live","paused","halftime"].includes(status));
   }).forEach(f=>{
@@ -621,7 +760,7 @@ function substitutionEvents(matchId,teamId=""){
 }
 function lineupHtml(f,side){
   const ids=fixtureLineups(f)[side];
-  const teamId=side==="home"?f.home:f.away;
+  const teamId=actualFixtureTeamId(f,side);
   if(!ids.length)return `<div class="muted">Lineup not submitted.</div>`;
   return `<ul class="lineup-list">${ids.map(id=>`<li>${playerName(id)}${playerCaptainForFixture(id,teamId)?" (C)":""}</li>`).join("")}</ul>`;
 }
@@ -639,11 +778,16 @@ function fixtureDetailsHtml(f){
       <div class="result-team result-away"><strong>${teamName(f.away)}</strong>${completedTeamMatchDetailsHtml(f,f.away,"right")}</div>
     </div>
   </div>`:"";
-  return `<div class="fixture-details">
+  const finalBanner=isFinalFixture(f)
+    ? `<div class="final-resolution-banner">${leagueStageComplete()
+        ? `🏆 Finalists automatically set: ${teamName("FINAL1")} vs ${teamName("FINAL2")}`
+        : "🏆 Finalists will be filled automatically when all league-stage matches are completed."}</div>`
+    : "";
+  return `<div class="fixture-details">${finalBanner}
     ${resultSummary}
     <div class="fixture-detail-grid">
-      <div class="fixture-detail-team"><div class="live-lineup-team-head">${logoHtml(f.home)}<h4>${teamName(f.home)}</h4></div>${lineupHtml(f,"home")}${substitutionsHtml(f,f.home)}</div>
-      <div class="fixture-detail-team away"><div class="live-lineup-team-head">${logoHtml(f.away)}<h4>${teamName(f.away)}</h4></div>${lineupHtml(f,"away")}${substitutionsHtml(f,f.away)}</div>
+      <div class="fixture-detail-team"><div class="live-lineup-team-head">${logoHtml(f.home)}<h4>${teamName(f.home)}</h4></div>${lineupHtml(f,"home")}${substitutionsHtml(f,actualFixtureTeamId(f,"home"))}</div>
+      <div class="fixture-detail-team away"><div class="live-lineup-team-head">${logoHtml(f.away)}<h4>${teamName(f.away)}</h4></div>${lineupHtml(f,"away")}${substitutionsHtml(f,actualFixtureTeamId(f,"away"))}</div>
     </div>
     ${fixtureMediaSummaryHtml(f)}
   </div>`;
@@ -703,14 +847,14 @@ function renderGallery(){
   const content=document.querySelector("#galleryContent");
   if(!filter||!content)return;
   const previous=filter.value;
-  filter.innerHTML=`<option value="">All Photos & Videos</option><option value="GENERAL">General League Gallery</option>${data.fixtures.map(f=>`<option value="${f.id}">Week ${f.week} • ${teamName(f.home)} vs ${teamName(f.away)}</option>`).join("")}`;
+  filter.innerHTML=`<option value="">All Photos & Videos</option><option value="GENERAL">General Competition Gallery</option>${data.fixtures.map(f=>`<option value="${f.id}">Week ${f.week} • ${teamName(f.home)} vs ${teamName(f.away)}</option>`).join("")}`;
   if(previous==="GENERAL" || data.fixtures.some(f=>f.id===previous))filter.value=previous;
   const selected=filter.value;
   const sections=[];
   if(!selected || selected==="GENERAL"){
     const general=mediaForGeneral();
     if(general.length)sections.push(`<div class="gallery-match-group">
-      <div class="gallery-match-head"><div><strong>📸 General League Gallery</strong><div class="muted">League photos not tied to a specific match</div></div><span class="badge">${general.length} item${general.length===1?"":"s"}</span></div>
+      <div class="gallery-match-head"><div><strong>📸 General Competition Gallery</strong><div class="muted">Competition photos not tied to a specific match</div></div><span class="badge">${general.length} item${general.length===1?"":"s"}</span></div>
       <div class="gallery-grid">${general.map(item=>mediaItemHtml(item,{admin:isAdmin})).join("")}</div>
     </div>`);
   }
@@ -737,7 +881,7 @@ function renderAdminGallery(){
   if(panel)panel.classList.toggle("admin-hidden",!isAdmin);
   if(!matchSel||!list)return;
   const previous=matchSel.value;
-  matchSel.innerHTML=`<option value="GENERAL">📸 General League Gallery (all photos)</option>${data.fixtures.map(f=>`<option value="${f.id}">Week ${f.week} • ${teamName(f.home)} vs ${teamName(f.away)}</option>`).join("")}`;
+  matchSel.innerHTML=`<option value="GENERAL">📸 General Competition Gallery (all photos)</option>${data.fixtures.map(f=>`<option value="${f.id}">Week ${f.week} • ${teamName(f.home)} vs ${teamName(f.away)}</option>`).join("")}`;
   if(previous==="GENERAL" || data.fixtures.some(f=>f.id===previous))matchSel.value=previous;
   const matchId=matchSel.value || "GENERAL";
   const items=matchId==="GENERAL"?mediaForGeneral():mediaForMatch(matchId);
@@ -778,7 +922,7 @@ async function uploadGalleryPhotos(){
       const result=await response.json();
       if(!response.ok)throw new Error(result?.error?.message||"Photo upload failed.");
       await mediaRef.add({
-        matchId,mediaType:"image",url:result.secure_url,caption,
+        matchId,competitionId:selectedCompetitionId,mediaType:"image",url:result.secure_url,caption,
         cloudinaryPublicId:result.public_id||"",
         originalName:file.name,createdAtMs:Date.now(),
         createdBy:auth.currentUser?.email||ADMIN_EMAIL
@@ -805,7 +949,7 @@ async function addGalleryLink(){
   if(!matchId||!url)return alert("Choose a match and enter a media URL.");
   try{
     new URL(url);
-    await mediaRef.add({matchId,mediaType:type,url,caption,storagePath:"",createdAtMs:Date.now(),createdBy:auth.currentUser?.email||ADMIN_EMAIL});
+    await mediaRef.add({matchId,competitionId:selectedCompetitionId,mediaType:type,url,caption,storagePath:"",createdAtMs:Date.now(),createdBy:auth.currentUser?.email||ADMIN_EMAIL});
     document.querySelector("#galleryLinkUrl").value="";
     document.querySelector("#galleryLinkCaption").value="";
     document.querySelector("#galleryUploadProgress").textContent="Media link added.";
@@ -831,7 +975,7 @@ async function deleteGalleryMedia(id){
 }
 
 function currentPlayersOnField(f,teamId){
-  const side=teamId===f.home?"home":teamId===f.away?"away":"";
+  const side=teamId===actualFixtureTeamId(f,"home")?"home":teamId===actualFixtureTeamId(f,"away")?"away":"";
   if(!side)return [];
   let ids=[...fixtureLineups(f)[side]];
   substitutionEvents(f.id,teamId).forEach(e=>{
@@ -851,8 +995,8 @@ function renderLineupManager(){
     const players=data.players.filter(p=>p.active!==false && p.teamId===teamId).sort((a,b)=>a.name.localeCompare(b.name));
     return players.length?players.map(p=>`<label class="lineup-player"><input type="checkbox" data-lineup-player="${p.id}" data-team-id="${teamId}" ${selected.includes(p.id)?"checked":""}> <span>${p.name}${p.captain?" (C)":""}</span></label>`).join(""):`<div class="muted">No active players.</div>`;
   };
-  homeBox.innerHTML=make(f.home,lineups.home);
-  awayBox.innerHTML=make(f.away,lineups.away);
+  homeBox.innerHTML=make(actualFixtureTeamId(f,"home"),lineups.home);
+  awayBox.innerHTML=make(actualFixtureTeamId(f,"away"),lineups.away);
   renderSubstitutionOptions();
 }
 function renderSubstitutionOptions(){
@@ -860,8 +1004,9 @@ function renderSubstitutionOptions(){
   const teamSel=document.querySelector("#subTeam"), outSel=document.querySelector("#subPlayerOut"), inSel=document.querySelector("#subPlayerIn");
   if(!teamSel||!outSel||!inSel)return;
   const currentTeam=teamSel.value;
-  teamSel.innerHTML=`<option value="${f.home}">${teamName(f.home)}</option><option value="${f.away}">${teamName(f.away)}</option>`;
-  if([f.home,f.away].includes(currentTeam))teamSel.value=currentTeam;
+  const homeId=actualFixtureTeamId(f,"home"), awayId=actualFixtureTeamId(f,"away");
+  teamSel.innerHTML=`<option value="${homeId}">${teamName(f.home)}</option><option value="${awayId}">${teamName(f.away)}</option>`;
+  if([homeId,awayId].includes(currentTeam))teamSel.value=currentTeam;
   const teamId=teamSel.value;
   const onField=currentPlayersOnField(f,teamId);
   const roster=data.players.filter(p=>p.active!==false && p.teamId===teamId).sort((a,b)=>a.name.localeCompare(b.name));
@@ -915,6 +1060,7 @@ function renderFutureEvents(){
 }
 
 function render(){
+  renderCompetitionUI();
   const st=standings();
   const played=data.fixtures.filter(f=>hasScore(f)&&normalizedStatus(f)==="finished");
   document.querySelector("#kpiMatches").textContent=played.length;
@@ -953,14 +1099,26 @@ function render(){
     return `<div class="scorer-row profile-clickable" data-player-profile="${p.id}"><div class="scorer-rank ${rankClass}">${i+1}</div><div><strong>${p.name}</strong><div class="muted">${logoHtml(p.teamId,p.name)}${teamName(p.teamId)} • ${p.assists} assist${p.assists===1?"":"s"}</div></div><div class="goal-total"><strong class="goal-number">${p.goals}</strong><small>GOALS</small></div></div>`;
   }).join(""):`<div class="muted">No goals have been recorded. Admin can add goals from the Admin tab.</div>`;
 
+  const assists=[...scorers].filter(p=>p.assists>0).sort((a,b)=>b.assists-a.assists||b.goals-a.goals);
+  const assistsEl=document.querySelector("#assistsLeaders");if(assistsEl)assistsEl.innerHTML=assists.length?assists.map((p,i)=>`<div class="leader-row profile-clickable" data-player-profile="${p.id}"><strong>${i+1}</strong><span><strong>${p.name}</strong><small class="muted">${teamName(p.teamId)}</small></span><strong>${p.assists}</strong></div>`).join(""):`<div class="muted">No assists recorded yet.</div>`;
+  const cards=[...scorers].filter(p=>p.yellow||p.red).sort((a,b)=>(b.red*3+b.yellow)-(a.red*3+a.yellow));
+  const cardsEl=document.querySelector("#cardsLeaders");if(cardsEl)cardsEl.innerHTML=cards.length?cards.map((p,i)=>`<div class="leader-row profile-clickable" data-player-profile="${p.id}"><strong>${i+1}</strong><span><strong>${p.name}</strong><small class="muted">${teamName(p.teamId)}</small></span><strong>YC ${p.yellow} • RC ${p.red}</strong></div>`).join(""):`<div class="muted">No cards recorded yet.</div>`;
+  const potm=[...scorers].filter(p=>p.potm>0).sort((a,b)=>b.potm-a.potm||b.goals-a.goals);
+  const potmEl=document.querySelector("#potmLeaders");if(potmEl)potmEl.innerHTML=potm.length?potm.map((p,i)=>`<div class="leader-row profile-clickable" data-player-profile="${p.id}"><strong>${i+1}</strong><span><strong>${p.name}</strong><small class="muted">${teamName(p.teamId)}</small></span><strong>${p.potm}</strong></div>`).join(""):`<div class="muted">No Player of the Match awards recorded yet.</div>`;
+
   document.querySelector("#fixtureList").innerHTML=data.fixtures.map(f=>{
     const status=normalizedStatus(f);
     const matchHasScore=hasScore(f);
     const label=status==="live"?"🔴 LIVE":status==="halftime"?"Half Time":status==="paused"?"Paused":status==="finished"?"Full Time":"Scheduled";
     const canOpen=["live","paused","halftime","finished"].includes(status);
+    const finalAutoNote=isFinalFixture(f)
+      ? `<div class="final-auto-note">${leagueStageComplete()
+          ? `🏆 Final: ${teamName("FINAL1")} vs ${teamName("FINAL2")}`
+          : "🏆 Final: 1st Place vs 2nd Place • teams fill automatically after league completion"}</div>`
+      : "";
     return `<div class="match ${canOpen?"fixture-clickable":""}" ${canOpen?`data-fixture-id="${f.id}"`:""}><div>${logoHtml(f.home)}<strong>${teamName(f.home)}</strong><div class="muted">Week ${f.week}</div></div>
       <div class="score">${matchHasScore?`${Number(f.homeScore)}–${Number(f.awayScore)}`:"VS"}<div class="badge">${label}</div>${canOpen?`<div class="fixture-details-hint">${expandedFixtureId===f.id?"Hide":"View"} match details</div>`:""}</div>
-      <div class="team-right"><strong>${teamName(f.away)}</strong>${logoHtml(f.away)}<div class="muted">${f.date||""}${f.time?` • ${f.time}`:""}${f.venue?`<br>${f.venue}`:""}</div></div>
+      <div class="team-right"><strong>${teamName(f.away)}</strong>${logoHtml(f.away)}<div class="muted">${f.date||""}${f.time?` • ${f.time}`:""}${f.venue?`<br>${f.venue}`:""}${finalAutoNote}</div></div>
       ${expandedFixtureId===f.id?fixtureDetailsHtml(f):""}</div>`;
   }).join("");
 
@@ -968,11 +1126,15 @@ function render(){
   renderGallery();
   renderAdminGallery();
 
-  document.querySelector("#standingsBody").innerHTML=st.map((x,i)=>`<tr class="${i===0?"rank1":i===1?"rank2":i===2?"rank3":""}">
-    <td>${i+1}</td><td>${logoHtml(x.team.id)}<strong>${x.team.name}</strong></td><td>${x.p}</td><td>${x.w}</td><td>${x.d}</td><td>${x.l}</td><td>${x.gf}</td><td>${x.ga}</td><td>${x.gd}</td><td><strong>${x.pts}</strong></td></tr>`).join("");
+  const selectedComp=competitionById(selectedCompetitionId);
+  document.querySelector("#standingsBody").innerHTML=st.map((x,i)=>`<tr class="${i===0?"rank1 ":i===1?"rank2 ":i===2?"rank3 ":""}${selectedComp?.type==="league_final"&&i===1?"qualification-row":""}">
+    <td>${i+1}</td><td>${logoHtml(x.team.id)}<strong>${x.team.name}</strong>${selectedComp?.type==="league_final"&&i<2?` <span class="status-chip current">Final</span>`:""}</td><td>${x.p}</td><td>${x.w}</td><td>${x.d}</td><td>${x.l}</td><td>${x.gf}</td><td>${x.ga}</td><td>${x.gd>0?"+":""}${x.gd}</td><td><strong>${x.pts}</strong></td></tr>`).join("");
 
   const homeStandingsBody=document.querySelector("#homeStandingsBody");
-  if(homeStandingsBody) homeStandingsBody.innerHTML=st.slice(0,3).map((x,i)=>`<tr><td>${i+1}</td><td>${logoHtml(x.team.id)}<strong>${x.team.name}</strong></td><td>${x.p}</td><td>${x.gd>0?"+":""}${x.gd}</td><td><strong>${x.pts}</strong></td></tr>`).join("");
+  if(homeStandingsBody){
+    const comp=competitionById(selectedCompetitionId);
+    homeStandingsBody.innerHTML=st.map((x,i)=>`<tr class="${comp?.type==="league_final"&&i===1?"qualification-row":""}"><td>${i+1}</td><td>${logoHtml(x.team.id)}<strong>${x.team.name}</strong></td><td>${x.p}</td><td>${x.w}</td><td>${x.d}</td><td>${x.l}</td><td>${x.gd>0?"+":""}${x.gd}</td><td><strong>${x.pts}</strong></td></tr>`).join("");
+  }
   const homeNoLive=document.querySelector("#homeNoLive");
   if(homeNoLive) homeNoLive.style.display=activeMatch()?"none":"block";
 
@@ -1016,6 +1178,7 @@ function render(){
   renderControlCenter();
   renderEventManager();
   renderTeamManager();
+  renderFixtureManager();
   renderFutureEvents();
   const liveStandingsToggle=document.querySelector("#liveStandingsToggle");
   if(liveStandingsToggle) liveStandingsToggle.checked=data.settings?.liveStandings!==false;
@@ -1047,20 +1210,55 @@ function renderAwards(scorers,st){
   ].join("");
 }
 
+function profileStatsCards(s){
+  return `<div class="player-profile-stats">
+    <div class="profile-stat"><strong>${s.goals||0}</strong><span>Goals</span></div>
+    <div class="profile-stat"><strong>${s.assists||0}</strong><span>Assists</span></div>
+    <div class="profile-stat"><strong>${s.yellow||0}</strong><span>Yellow</span></div>
+    <div class="profile-stat"><strong>${s.red||0}</strong><span>Red</span></div>
+    <div class="profile-stat"><strong>${s.potm||0}</strong><span>POTM</span></div>
+  </div>`;
+}
+function statsForPlayerInRaw(raw,name){
+  const players=Array.isArray(raw?.players)?raw.players:[];
+  const normalized=String(name||"").trim().toLowerCase();
+  const matches=players.filter(p=>String(p.name||"").trim().toLowerCase()===normalized);
+  const ids=new Set(matches.map(p=>p.id));
+  const ev=(Array.isArray(raw?.events)?raw.events:[]).filter(e=>ids.has(e.playerId));
+  return {goals:ev.filter(x=>x.type==="Goal").length,assists:ev.filter(x=>x.type==="Assist").length,yellow:ev.filter(x=>x.type==="Yellow Card").length,red:ev.filter(x=>x.type==="Red Card").length,potm:ev.filter(x=>x.type==="Player of the Match").length,players:matches};
+}
+async function playerAggregateFor(name,ids){
+  const total={goals:0,assists:0,yellow:0,red:0,potm:0};const history=[];
+  for(const id of ids){
+    let raw=null;
+    if(id===selectedCompetitionId)raw=data;
+    else{try{const snap=await competitionDocRef(id).get();if(snap.exists)raw=snap.data();}catch{}}
+    if(!raw)continue;
+    const st=statsForPlayerInRaw(raw,name);if(!st.players.length)continue;
+    for(const k of ["goals","assists","yellow","red","potm"])total[k]+=st[k];
+    const teams=(Array.isArray(raw.teams)?raw.teams:[]);const teamNames=[...new Set(st.players.map(p=>teams.find(t=>t.id===p.teamId)?.name).filter(Boolean))];
+    history.push({competition:competitionShortLabel(id),teams:teamNames.join(", ")||"—",...st});
+  }
+  return {total,history};
+}
+async function loadPlayerProfileScope(name,scope){
+  const target=document.querySelector("#playerProfileScopeContent");if(!target)return;
+  target.innerHTML=`<div class="muted">Loading ${scope} statistics…</div>`;
+  const selected=competitionById(selectedCompetitionId);
+  const ids=scope==="season"&&selected?.parentSeason?competitions.filter(c=>c.parentSeason===selected.parentSeason).map(c=>c.id):competitions.map(c=>c.id);
+  const result=await playerAggregateFor(name,ids);
+  if(!document.querySelector("#playerProfileScopeContent"))return;
+  target.innerHTML=`${profileStatsCards(result.total)}<h4 style="margin:14px 0 8px">Competition History</h4>${result.history.length?result.history.map(h=>`<div class="player-row"><span><strong>${h.competition}</strong><div class="muted">${h.teams}</div></span><span class="muted">G ${h.goals} • A ${h.assists} • YC ${h.yellow} • RC ${h.red} • POTM ${h.potm}</span></div>`).join(""):`<div class="muted">No recorded ${scope} history yet.</div>`}`;
+}
 function openPlayerProfile(playerId){
   const p=data.players.find(x=>x.id===playerId); if(!p)return;
   const s=statsFor(p.id), media=TEAM_MEDIA[p.teamId]||{};
   document.querySelector("#playerProfileTitle").textContent=p.name;
   document.querySelector("#playerProfileContent").innerHTML=`
     <div class="player-profile-head">${media.logo?`<img class="player-profile-logo" src="${encodeURI(media.logo)}" alt="${teamName(p.teamId)} logo">`:""}<div><strong style="font-size:20px">${p.name}</strong><div class="muted">${teamName(p.teamId)}${p.captain?" • Captain":""}${p.number?` • #${p.number}`:""}${p.active===false?" • Former player":""}</div></div></div>
-    <div class="player-profile-stats">
-      <div class="profile-stat"><strong>${s.goals}</strong><span>Goals</span></div>
-      <div class="profile-stat"><strong>${s.assists}</strong><span>Assists</span></div>
-      <div class="profile-stat"><strong>${s.yellow}</strong><span>Yellow</span></div>
-      <div class="profile-stat"><strong>${s.red}</strong><span>Red</span></div>
-      <div class="profile-stat"><strong>${s.potm}</strong><span>POTM</span></div>
-      <div class="profile-stat"><strong>${p.position||"—"}</strong><span>Position</span></div>
-    </div>`;
+    <div class="stats-tabs profile-scope-tabs"><button class="stats-tab active" type="button" data-profile-scope="competition">This Competition</button><button class="stats-tab" type="button" data-profile-scope="season">This Season</button><button class="stats-tab" type="button" data-profile-scope="career">Career</button></div>
+    <div id="playerProfileScopeContent">${profileStatsCards(s)}<div class="muted" style="margin-top:10px">${competitionShortLabel()}${p.position?` • ${p.position}`:""}</div></div>`;
+  document.querySelector("#playerProfileModal").dataset.playerName=p.name;
   document.querySelector("#playerProfileModal").classList.add("open");
 }
 function closePlayerProfile(){document.querySelector("#playerProfileModal")?.classList.remove("open");}
@@ -1094,8 +1292,9 @@ let pendingGoalTeamId="";
 function eventPlayersForMatch(matchId, teamFilterId=""){
   const match=data.fixtures.find(f=>f.id===matchId);
   if(!match)return [];
+  const homeId=actualFixtureTeamId(match,"home"), awayId=actualFixtureTeamId(match,"away");
   return data.players
-    .filter(p=>p.active!==false && [match.home,match.away].includes(p.teamId) && (!teamFilterId || p.teamId===teamFilterId))
+    .filter(p=>p.active!==false && [homeId,awayId].includes(p.teamId) && (!teamFilterId || p.teamId===teamFilterId))
     .sort((a,b)=>a.name.localeCompare(b.name));
 }
 function refreshEventPlayerOptions(teamFilterId=pendingGoalTeamId){
@@ -1139,7 +1338,8 @@ function goalEventsForTeam(matchId, teamId){
   return matchEvents(matchId).filter(e=>["Goal","Own Goal"].includes(e.type) && eventScoringTeamId(e,match)===teamId);
 }
 function teamScorersHtml(f, teamId, align="left"){
-  const goals=goalEventsForTeam(f.id,teamId);
+  const targetTeamId=actualFixtureTeamId(f,teamId);
+  const goals=goalEventsForTeam(f.id,targetTeamId);
   if(!goals.length)return `<div class="team-scorers-empty">No goals</div>`;
   return `<div class="team-scorers ${align}">${goals.map(e=>{
     const p=data.players.find(x=>x.id===e.playerId);
@@ -1148,10 +1348,11 @@ function teamScorersHtml(f, teamId, align="left"){
 }
 
 function teamCardsHtml(f,teamId){
+  const targetTeamId=actualFixtureTeamId(f,teamId);
   const cards=matchEvents(f.id).filter(e=>{
     if(!["Yellow Card","Red Card"].includes(e.type))return false;
     const p=data.players.find(x=>x.id===e.playerId);
-    return (e.teamId || p?.teamId || "")===teamId;
+    return (e.teamId || p?.teamId || "")===targetTeamId;
   });
   if(!cards.length)return `<div class="team-cards-empty">No cards</div>`;
   return `<div class="team-card-events">${cards.map(e=>{
@@ -1193,8 +1394,8 @@ function renderLiveMatch(){
   const liveLineups=document.querySelector("#liveLineupsContent");
   if(liveLineups){
     liveLineups.innerHTML=`<div class="live-lineup-grid">
-      <div class="live-lineup-team"><div class="live-lineup-team-head">${teamLogo(f.home)?`<img class="live-lineup-logo" src="${encodeURI(teamLogo(f.home))}" alt="${teamName(f.home)} logo">`:""}<h4>${teamName(f.home)}</h4></div>${lineupHtml(f,"home")}<h4 style="margin-top:12px">Substitutions</h4>${substitutionsHtml(f,f.home)}</div>
-      <div class="live-lineup-team away"><div class="live-lineup-team-head">${teamLogo(f.away)?`<img class="live-lineup-logo" src="${encodeURI(teamLogo(f.away))}" alt="${teamName(f.away)} logo">`:""}<h4>${teamName(f.away)}</h4></div>${lineupHtml(f,"away")}<h4 style="margin-top:12px">Substitutions</h4>${substitutionsHtml(f,f.away)}</div>
+      <div class="live-lineup-team"><div class="live-lineup-team-head">${teamLogo(f.home)?`<img class="live-lineup-logo" src="${encodeURI(teamLogo(f.home))}" alt="${teamName(f.home)} logo">`:""}<h4>${teamName(f.home)}</h4></div>${lineupHtml(f,"home")}<h4 style="margin-top:12px">Substitutions</h4>${substitutionsHtml(f,actualFixtureTeamId(f,"home"))}</div>
+      <div class="live-lineup-team away"><div class="live-lineup-team-head">${teamLogo(f.away)?`<img class="live-lineup-logo" src="${encodeURI(teamLogo(f.away))}" alt="${teamName(f.away)} logo">`:""}<h4>${teamName(f.away)}</h4></div>${lineupHtml(f,"away")}<h4 style="margin-top:12px">Substitutions</h4>${substitutionsHtml(f,actualFixtureTeamId(f,"away"))}</div>
     </div>`;
     const liveGallery=document.querySelector("#liveGalleryContent");
     if(liveGallery) liveGallery.innerHTML=matchGalleryHtml(f);
@@ -1206,9 +1407,9 @@ function renderLiveMatch(){
       liveStats.innerHTML=`<div class="match-stat-grid">
         <div class="match-stat-team">${teamName(f.home)}</div><div class="match-stat-label">Statistic</div><div class="match-stat-team">${teamName(f.away)}</div>
         <div class="match-stat-value">${homeGoals}</div><div class="match-stat-label">Goals</div><div class="match-stat-value">${awayGoals}</div>
-        <div class="match-stat-value">${count(f.home,"Yellow Card")}</div><div class="match-stat-label">Yellow Cards</div><div class="match-stat-value">${count(f.away,"Yellow Card")}</div>
-        <div class="match-stat-value">${count(f.home,"Red Card")}</div><div class="match-stat-label">Red Cards</div><div class="match-stat-value">${count(f.away,"Red Card")}</div>
-        <div class="match-stat-value">${count(f.home,"Substitution")}</div><div class="match-stat-label">Substitutions</div><div class="match-stat-value">${count(f.away,"Substitution")}</div>
+        <div class="match-stat-value">${count(actualFixtureTeamId(f,"home"),"Yellow Card")}</div><div class="match-stat-label">Yellow Cards</div><div class="match-stat-value">${count(actualFixtureTeamId(f,"away"),"Yellow Card")}</div>
+        <div class="match-stat-value">${count(actualFixtureTeamId(f,"home"),"Red Card")}</div><div class="match-stat-label">Red Cards</div><div class="match-stat-value">${count(actualFixtureTeamId(f,"away"),"Red Card")}</div>
+        <div class="match-stat-value">${count(actualFixtureTeamId(f,"home"),"Substitution")}</div><div class="match-stat-label">Substitutions</div><div class="match-stat-value">${count(actualFixtureTeamId(f,"away"),"Substitution")}</div>
       </div>`;
     }
   }
@@ -1258,9 +1459,10 @@ function selectedManagedEvent(){
 }
 function playerTeamForMatch(player, match, existingEvent=null){
   if(!player||!match)return "";
-  if([match.home,match.away].includes(player.teamId))return player.teamId;
-  if([match.home,match.away].includes(player.previousTeamId))return player.previousTeamId;
-  if(existingEvent && String(existingEvent.playerId)===String(player.id) && [match.home,match.away].includes(existingEvent.teamId))return existingEvent.teamId;
+  const ids=[actualFixtureTeamId(match,"home"),actualFixtureTeamId(match,"away")];
+  if(ids.includes(player.teamId))return player.teamId;
+  if(ids.includes(player.previousTeamId))return player.previousTeamId;
+  if(existingEvent && String(existingEvent.playerId)===String(player.id) && ids.includes(existingEvent.teamId))return existingEvent.teamId;
   return "";
 }
 function adjustScoreForEvent(event, direction){
@@ -1269,8 +1471,8 @@ function adjustScoreForEvent(event, direction){
   if(!match)return;
   const scoringTeamId=eventScoringTeamId(event,match);
   const delta=direction>=0?1:-1;
-  if(scoringTeamId===match.home)match.homeScore=Math.max(0,Number(match.homeScore||0)+delta);
-  else if(scoringTeamId===match.away)match.awayScore=Math.max(0,Number(match.awayScore||0)+delta);
+  if(scoringTeamId===actualFixtureTeamId(match,"home"))match.homeScore=Math.max(0,Number(match.homeScore||0)+delta);
+  else if(scoringTeamId===actualFixtureTeamId(match,"away"))match.awayScore=Math.max(0,Number(match.awayScore||0)+delta);
 }
 function renderEventManager(){
   const matchSelect=document.querySelector("#manageEventMatch");
@@ -1475,6 +1677,108 @@ async function applyPlayerManagement(){
   try{render();await save();flash();}catch(err){alert(err.message);}
 }
 
+
+function openCompetitionSwitcher(){document.querySelector("#competitionSwitcherModal")?.classList.add("open");renderCompetitionUI();}
+function closeCompetitionSwitcher(){document.querySelector("#competitionSwitcherModal")?.classList.remove("open");}
+async function persistCompetitionConfig(){
+  if(!isAdmin)throw new Error("Admin login required.");
+  await leagueConfigRef.set({competitions:structuredClone(competitions),currentCompetitionId,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+}
+async function initializeSelectedCompetition(){
+  if(!isAdmin)return openLogin();
+  const id=document.querySelector("#adminCompetitionSelect")?.value||selectedCompetitionId;
+  const c=competitionById(id);if(!c)return;
+  const ref=competitionDocRef(id);const snap=await ref.get();
+  if(snap.exists){alert(`${c.name} already has a data document. Nothing was overwritten.`);return;}
+  if(!confirm(`Initialize ${c.fullName||c.name}?\n\nThis creates an empty competition with the three team identities. Rosters, fixtures, events and stats start empty.`))return;
+  await ref.set({...emptyCompetitionData(),competitionId:id,createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+  document.querySelector("#competitionAdminStatus").textContent=`${c.name} initialized. You can now build its roster and fixtures.`;
+  if(id===selectedCompetitionId)startLiveData();
+}
+async function saveSelectedCompetitionStatus(){
+  if(!isAdmin)return openLogin();
+  const id=document.querySelector("#adminCompetitionSelect")?.value||selectedCompetitionId;
+  const status=document.querySelector("#adminCompetitionStatus")?.value||"upcoming";
+  const c=competitions.find(x=>x.id===id);if(!c)return;
+  c.status=status;
+  if(status==="current"){
+    currentCompetitionId=id;
+    competitions.forEach(x=>{if(x.id!==id&&x.status==="current")x.status="upcoming";});
+  }else if(currentCompetitionId===id){
+    currentCompetitionId=competitions.find(x=>x.id!==id&&x.status==="current")?.id||currentCompetitionId;
+  }
+  await persistCompetitionConfig();renderCompetitionUI();
+  document.querySelector("#competitionAdminStatus").textContent=`${c.name} status saved as ${status}.`;
+}
+async function setSelectedCompetitionCurrent(){
+  if(!isAdmin)return openLogin();
+  const id=document.querySelector("#adminCompetitionSelect")?.value||selectedCompetitionId;
+  currentCompetitionId=id;
+  competitions.forEach(c=>{if(c.id===id)c.status="current";else if(c.status==="current")c.status="upcoming";});
+  await persistCompetitionConfig();renderCompetitionUI();
+  document.querySelector("#competitionAdminStatus").textContent=`${competitionById(id)?.name||id} is now the default current competition.`;
+}
+
+function toDateInputValue(value=""){
+  const m=String(value).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m)return `${m[3]}-${String(m[1]).padStart(2,"0")}-${String(m[2]).padStart(2,"0")}`;
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value))?String(value):"";
+}
+function fromDateInputValue(value=""){
+  const m=String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m?`${m[2]}/${m[3]}/${m[1]}`:value;
+}
+function toTimeInputValue(value=""){
+  const m=String(value).match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if(!m)return /^\d{2}:\d{2}$/.test(String(value))?String(value):"";
+  let h=Number(m[1]);const ampm=m[3].toUpperCase();if(ampm==="PM"&&h<12)h+=12;if(ampm==="AM"&&h===12)h=0;return `${String(h).padStart(2,"0")}:${m[2]}`;
+}
+function fromTimeInputValue(value=""){
+  const m=String(value).match(/^(\d{2}):(\d{2})$/);if(!m)return value;let h=Number(m[1]);const ap=h>=12?"PM":"AM";h=h%12||12;return `${h}:${m[2]} ${ap}`;
+}
+function renderFixtureManager(){
+  const sel=document.querySelector("#fixtureManageSelect"),home=document.querySelector("#fixtureManageHome"),away=document.querySelector("#fixtureManageAway");
+  if(!sel||!home||!away)return;
+  const previous=sel.value||"NEW";
+  sel.innerHTML=`<option value="NEW">+ New fixture</option>${data.fixtures.map(f=>`<option value="${f.id}">${isFinalFixture(f)?"Final":`Week ${f.week}`} • ${teamName(f.home)} vs ${teamName(f.away)}</option>`).join("")}`;
+  sel.value=data.fixtures.some(f=>f.id===previous)?previous:"NEW";
+  const comp=competitionById(selectedCompetitionId);
+  const teamOptions=data.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join("");
+  const finalHome=comp?.type==="league_final"?`<option value="FINAL1">1st Place (Final)</option>`:"";
+  const finalAway=comp?.type==="league_final"?`<option value="FINAL2">2nd Place (Final)</option>`:"";
+  home.innerHTML=teamOptions+finalHome;away.innerHTML=teamOptions+finalAway;
+  loadFixtureManagerFields();
+}
+function loadFixtureManagerFields(){
+  const id=document.querySelector("#fixtureManageSelect")?.value;const f=data.fixtures.find(x=>x.id===id);
+  const home=document.querySelector("#fixtureManageHome"),away=document.querySelector("#fixtureManageAway");
+  if(!home||!away)return;
+  if(f){
+    document.querySelector("#fixtureManageWeek").value=f.week||1;home.value=f.home;away.value=f.away;
+    document.querySelector("#fixtureManageDate").value=toDateInputValue(f.date||"");document.querySelector("#fixtureManageTime").value=toTimeInputValue(f.time||"");document.querySelector("#fixtureManageVenue").value=f.venue||"";
+  }else{
+    document.querySelector("#fixtureManageWeek").value=Math.max(1,...data.fixtures.map(x=>Number(x.week||0)))+1;document.querySelector("#fixtureManageDate").value="";document.querySelector("#fixtureManageTime").value="";document.querySelector("#fixtureManageVenue").value="De Anza High School";
+    if(home.options.length)home.selectedIndex=0;if(away.options.length)away.selectedIndex=Math.min(1,away.options.length-1);
+  }
+}
+async function saveManagedFixture(){
+  if(!isAdmin)return openLogin();
+  const select=document.querySelector("#fixtureManageSelect"),existingId=select?.value;
+  const home=document.querySelector("#fixtureManageHome")?.value,away=document.querySelector("#fixtureManageAway")?.value;
+  if(!home||!away||home===away)return alert("Choose two different teams.");
+  const isFinal=home==="FINAL1"||away==="FINAL2";
+  if(isFinal && !(home==="FINAL1"&&away==="FINAL2"))return alert("For the Final, select 1st Place as home and 2nd Place as away.");
+  const payload={week:Number(document.querySelector("#fixtureManageWeek")?.value||1),home,away,date:fromDateInputValue(document.querySelector("#fixtureManageDate")?.value||""),time:fromTimeInputValue(document.querySelector("#fixtureManageTime")?.value||""),venue:document.querySelector("#fixtureManageVenue")?.value.trim()||"",homeScore:null,awayScore:null,status:"scheduled",isFinal};
+  if(existingId&&existingId!=="NEW"){const i=data.fixtures.findIndex(f=>f.id===existingId);if(i>=0)data.fixtures[i]={...data.fixtures[i],...payload};}
+  else{payload.id=`${isFinal?"FINAL":"M"}-${Date.now()}`;data.fixtures.push(payload);}
+  await save();render();flash();
+}
+async function deleteManagedFixture(){
+  if(!isAdmin)return openLogin();const id=document.querySelector("#fixtureManageSelect")?.value;if(!id||id==="NEW")return alert("Choose a fixture to delete.");
+  const f=data.fixtures.find(x=>x.id===id);if(!f)return;if(!confirm(`Delete ${teamName(f.home)} vs ${teamName(f.away)} from ${competitionShortLabel()}?`))return;
+  data.fixtures=data.fixtures.filter(x=>x.id!==id);data.events=data.events.filter(e=>e.matchId!==id);await save();render();flash();
+}
+
 function fillSelects(){
   const openMatches=Array.isArray(data.fixtures)?data.fixtures:[];
   ["resultMatch","eventMatch","controlMatch","manageEventMatch"].forEach(id=>{
@@ -1494,10 +1798,33 @@ function fillSelects(){
   refreshEventPlayerOptions();
 }
 document.querySelector("#tabs").addEventListener("click",e=>{
-  if(!e.target.dataset.tab)return;
-  if(e.target.dataset.tab==="admin"&&!isAdmin){openLogin();return;}
-  activateTab(e.target.dataset.tab);
+  const btn=e.target.closest("[data-tab]");
+  if(!btn)return;
+  if(btn.dataset.tab==="admin"&&!isAdmin){openLogin();return;}
+  activateTab(btn.dataset.tab);
 });
+document.addEventListener("click",e=>{
+  const open=e.target.closest("[data-open-tab]");
+  if(open){const tab=open.dataset.openTab;if(tab==="admin"&&!isAdmin)return openLogin();activateTab(tab);return;}
+  const comp=e.target.closest("[data-competition-id]");
+  if(comp){switchCompetition(comp.dataset.competitionId);renderCompetitionUI();return;}
+  const sw=e.target.closest("[data-switch-competition]");
+  if(sw){switchCompetition(sw.dataset.switchCompetition,{openHome:true});closeCompetitionSwitcher();return;}
+  if(e.target.closest("[data-view-selected-competition]")){activateTab("home");return;}
+});
+document.querySelector("#competitionSwitcherBtn")?.addEventListener("click",openCompetitionSwitcher);
+document.querySelector("#closeCompetitionSwitcher")?.addEventListener("click",closeCompetitionSwitcher);
+document.querySelector("#competitionSwitcherModal")?.addEventListener("click",e=>{if(e.target.id==="competitionSwitcherModal")closeCompetitionSwitcher();});
+document.querySelector("#moreAdminBtn")?.addEventListener("click",()=>{if(!isAdmin)openLogin();else activateTab("admin");});
+document.querySelectorAll(".stats-tab[data-stats-panel]").forEach(btn=>btn.addEventListener("click",()=>{document.querySelectorAll(".stats-tab[data-stats-panel]").forEach(b=>b.classList.toggle("active",b===btn));document.querySelectorAll(".stats-panel").forEach(p=>p.classList.toggle("active",p.dataset.statsContent===btn.dataset.statsPanel));}));
+document.querySelector("#adminCompetitionSelect")?.addEventListener("change",e=>{const c=competitionById(e.target.value);const st=document.querySelector("#adminCompetitionStatus");if(st)st.value=competitionStatus(c);});
+document.querySelector("#switchAdminCompetitionBtn")?.addEventListener("click",()=>{const id=document.querySelector("#adminCompetitionSelect")?.value;if(id)switchCompetition(id);});
+document.querySelector("#initializeCompetitionBtn")?.addEventListener("click",()=>initializeSelectedCompetition().catch(err=>alert(err.message)));
+document.querySelector("#saveCompetitionStatusBtn")?.addEventListener("click",()=>saveSelectedCompetitionStatus().catch(err=>alert(err.message)));
+document.querySelector("#setCurrentCompetitionBtn")?.addEventListener("click",()=>setSelectedCompetitionCurrent().catch(err=>alert(err.message)));
+document.querySelector("#fixtureManageSelect")?.addEventListener("change",loadFixtureManagerFields);
+document.querySelector("#fixtureManagementForm")?.addEventListener("submit",e=>{e.preventDefault();saveManagedFixture().catch(err=>alert(err.message));});
+document.querySelector("#deleteManagedFixtureBtn")?.addEventListener("click",()=>deleteManagedFixture().catch(err=>alert(err.message)));
 document.querySelector("#resultForm").addEventListener("submit",async e=>{
   e.preventDefault(); if(!isAdmin)return openLogin(); const f=data.fixtures.find(x=>x.id===document.querySelector("#resultMatch").value);
   f.homeScore=Number(document.querySelector("#homeScore").value); f.awayScore=Number(document.querySelector("#awayScore").value); f.status="finished"; f.startedAtMs=null; f.finishedAtMs=Date.now();
@@ -1531,17 +1858,18 @@ document.querySelector("#eventForm").addEventListener("submit",async e=>{
   const eventType=document.querySelector("#eventType").value;
   if(!eventMatch)return alert("Select a valid match.");
   const playerTeamId=selectedPlayer?.teamId||"";
-  if(![eventMatch.home,eventMatch.away].includes(playerTeamId))return alert("The selected player is not on either team in this match.");
+  const eventHomeId=actualFixtureTeamId(eventMatch,"home"), eventAwayId=actualFixtureTeamId(eventMatch,"away");
+  if(![eventHomeId,eventAwayId].includes(playerTeamId))return alert("The selected player is not on either team in this match.");
   if(eventType==="Goal" && pendingGoalTeamId && playerTeamId!==pendingGoalTeamId)return alert(`Select a scorer from ${teamName(pendingGoalTeamId)}.`);
   const newEvent={id:"E"+Date.now(),matchId,playerId:document.querySelector("#eventPlayer").value,teamId:playerTeamId,
     type:eventType,minute:minuteInput===""?autoMinute:Number(minuteInput),createdAtMs:Date.now()};
   data.events.push(newEvent);
   if(eventType==="Goal"){
-    if(playerTeamId===eventMatch.home)eventMatch.homeScore=Number(eventMatch.homeScore||0)+1;
-    else if(playerTeamId===eventMatch.away)eventMatch.awayScore=Number(eventMatch.awayScore||0)+1;
+    if(playerTeamId===eventHomeId)eventMatch.homeScore=Number(eventMatch.homeScore||0)+1;
+    else if(playerTeamId===eventAwayId)eventMatch.awayScore=Number(eventMatch.awayScore||0)+1;
   }else if(eventType==="Own Goal"){
-    if(playerTeamId===eventMatch.home)eventMatch.awayScore=Number(eventMatch.awayScore||0)+1;
-    else if(playerTeamId===eventMatch.away)eventMatch.homeScore=Number(eventMatch.homeScore||0)+1;
+    if(playerTeamId===eventHomeId)eventMatch.awayScore=Number(eventMatch.awayScore||0)+1;
+    else if(playerTeamId===eventAwayId)eventMatch.homeScore=Number(eventMatch.homeScore||0)+1;
   }
   try{
     await save();flash();e.target.reset();pendingGoalTeamId="";fillSelects();
@@ -1719,8 +2047,8 @@ document.querySelector("main")?.addEventListener("click",e=>{
 document.querySelector("#closePlayerProfile")?.addEventListener("click",closePlayerProfile);
 document.querySelector("#playerProfileModal")?.addEventListener("click",e=>{if(e.target.id==="playerProfileModal")closePlayerProfile();});
 
-document.querySelector("#homeGoalBtn").addEventListener("click",()=>{const f=selectedControlMatch();if(f)prepareGoalEvent(f.home);});
-document.querySelector("#awayGoalBtn").addEventListener("click",()=>{const f=selectedControlMatch();if(f)prepareGoalEvent(f.away);});
+document.querySelector("#homeGoalBtn").addEventListener("click",()=>{const f=selectedControlMatch();if(f)prepareGoalEvent(actualFixtureTeamId(f,"home"));});
+document.querySelector("#awayGoalBtn").addEventListener("click",()=>{const f=selectedControlMatch();if(f)prepareGoalEvent(actualFixtureTeamId(f,"away"));});
 setInterval(()=>{
   const f=activeMatch();
   if(f){
@@ -1799,10 +2127,22 @@ auth.onAuthStateChanged(user=>{
   isAdmin=Boolean(user && user.email?.toLowerCase()===ADMIN_EMAIL);
   updateAuthUI();
   if(isAdmin && !cloudReady) setStatus("Admin connected • Connecting to live data…");
+  if(isAdmin){
+    leagueConfigRef.get().then(snap=>{if(!snap.exists)return leagueConfigRef.set({competitions:structuredClone(DEFAULT_COMPETITIONS),currentCompetitionId,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});}).catch(()=>{});
+  }
+});
+document.querySelector("#playerProfileModal")?.addEventListener("click",e=>{
+  const btn=e.target.closest("[data-profile-scope]");if(!btn)return;
+  document.querySelectorAll("#playerProfileModal [data-profile-scope]").forEach(b=>b.classList.toggle("active",b===btn));
+  const scope=btn.dataset.profileScope,name=document.querySelector("#playerProfileModal")?.dataset.playerName||"";
+  if(scope==="competition"){
+    const p=data.players.find(x=>String(x.name||"").trim().toLowerCase()===name.trim().toLowerCase());
+    const target=document.querySelector("#playerProfileScopeContent");if(target&&p)target.innerHTML=`${profileStatsCards(statsFor(p.id))}<div class="muted" style="margin-top:10px">${competitionShortLabel()}${p.position?` • ${p.position}`:""}</div>`;
+  }else loadPlayerProfileScope(name,scope).catch(()=>{const t=document.querySelector("#playerProfileScopeContent");if(t)t.innerHTML='<div class="muted">Unable to load aggregate statistics.</div>';});
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeLogin();closePlayerProfile();}});
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("sw.js?v=1.0.12").then(reg=>{
+  navigator.serviceWorker.register("sw.js?v=1.1.0").then(reg=>{
     reg.update().catch(()=>{});
     reg.addEventListener("updatefound",()=>{
       const worker=reg.installing;
@@ -1824,4 +2164,5 @@ render();
 updateAuthUI();
 startLiveData();
 startMediaData();
+startCompetitionConfig();
 

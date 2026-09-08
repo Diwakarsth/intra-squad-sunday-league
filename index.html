@@ -386,7 +386,7 @@
     @media(max-width:560px){.backup-actions{grid-template-columns:1fr}}
 
   
-    /* v1.0.12: high-contrast result scores and scorer-minute placement */
+    /* v1.0.13: high-contrast result scores and scorer-minute placement */
     .result-score,.score{color:#2f9bff !important;}
     .result-score{font-weight:1000;text-shadow:0 0 14px rgba(47,155,255,.18);}
     .team-scorer-line{align-items:baseline;}
@@ -430,6 +430,40 @@
       #top-scorers .goal-total small{font-size:11px!important}
     }
 
+  
+    .final-auto-note{font-size:11px;color:#7dd3fc;margin-top:4px}
+    .final-resolution-banner{margin-bottom:12px;padding:10px 12px;border:1px solid rgba(125,211,252,.35);border-radius:10px;background:rgba(125,211,252,.06);font-size:12px;font-weight:800;color:#d9f5ff}
+
+    /* ===== v1.1.0 Multi-Competition Interface ===== */
+    .competition-context-wrap{display:flex;justify-content:center;margin:12px 0}
+    .competition-context{border:1px solid #1aa864;background:#071b24;color:#dfffee;border-radius:12px;padding:10px 16px;cursor:pointer;box-shadow:0 7px 22px rgba(0,0,0,.16)}
+    .competition-context .context-label{color:#9bb4c9;margin-right:5px}.competition-context strong{color:#72efad}
+    .primary-nav{display:grid;grid-template-columns:repeat(5,1fr);overflow:visible}
+    .primary-nav button{display:flex;justify-content:center;align-items:center;gap:7px}.primary-nav #adminTab{display:none!important}
+    .current-pill{display:inline-block;background:#24d26c;color:#04210f;border-radius:999px;padding:5px 9px;font-size:10px;font-weight:1000;letter-spacing:.06em;margin-bottom:8px}
+    .standings-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}.standings-scroll table{min-width:620px}
+    .text-link{border:0;background:transparent;color:#7bdc26;font-weight:900;cursor:pointer}
+    .section-heading{display:flex;justify-content:space-between;align-items:end;margin-bottom:12px}.section-heading h2{margin:0}
+    .competition-catalog{display:grid;gap:14px;margin-bottom:14px}
+    .competition-group{background:linear-gradient(180deg,rgba(9,25,43,.96),rgba(5,17,30,.97));border:1px solid var(--border);border-radius:16px;overflow:hidden}
+    .competition-group-title{padding:11px 14px;background:#0d3155;font-weight:1000;color:#fff}
+    .competition-item{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:13px 14px;border-top:1px solid var(--border);cursor:pointer}
+    .competition-item:hover{background:#0d2238}.competition-item.active{background:rgba(105,197,34,.08);box-shadow:inset 3px 0 #69c522}
+    .competition-icon{font-size:23px}.competition-item strong{display:block}.competition-item small{color:var(--muted)}
+    .status-chip{font-size:10px;font-weight:1000;text-transform:uppercase;padding:5px 8px;border-radius:999px;background:#19334d;color:#bcd0e3}
+    .status-chip.current{background:#1eb85a;color:#041b0d}.status-chip.completed{background:#31506a;color:#e5eef6}.status-chip.upcoming{background:#d6a71c;color:#1b1400}
+    .competition-overview-card{margin-top:14px}.competition-overview-hero{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start}.competition-overview-hero h2{margin:0 0 6px}
+    .competition-format{margin-top:14px;padding:12px;border:1px solid var(--border);border-radius:12px;background:#06131f}.competition-format strong{color:#fff}
+    .qualification-flow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}.qualification-flow span{padding:7px 10px;border-radius:9px;background:#0d2e4b;font-weight:800}.qualification-flow b{color:#6ce893}
+    .context-page-title{font-size:12px;color:#70dfff;font-weight:900;text-transform:uppercase;letter-spacing:.06em;margin:0 0 8px 4px}
+    .stats-tabs{display:flex;gap:8px;overflow-x:auto;margin:10px 0 14px;border-bottom:1px solid var(--border)}
+    .stats-tab{border:0;background:transparent;color:var(--muted);font-weight:900;padding:10px 14px;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}.stats-tab.active{color:var(--lime);border-bottom-color:var(--lime)}
+    .stats-panel{display:none}.stats-panel.active{display:block}.leader-row{display:grid;grid-template-columns:38px 1fr auto;gap:10px;align-items:center;padding:12px 4px;border-bottom:1px solid var(--border)}
+    .more-menu{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.more-menu button{display:grid;grid-template-columns:40px 1fr;grid-template-rows:auto auto;text-align:left;column-gap:10px;border:1px solid var(--border);background:#071729;color:#fff;border-radius:13px;padding:13px;cursor:pointer}.more-menu button>span{grid-row:1/3;font-size:24px;align-self:center}.more-menu small{color:var(--muted)}
+    .competition-switcher-sheet{max-height:min(78vh,720px);overflow:auto}.competition-switch-list{display:grid;gap:7px}.competition-switch-option{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;width:100%;border:1px solid var(--border);background:#071729;color:#fff;border-radius:12px;padding:11px;text-align:left;cursor:pointer}.competition-switch-option.selected{border-color:#32d875;background:#0a2a22}
+    .competition-admin-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.competition-admin-actions .btn{flex:1;min-width:170px}
+    .qualification-row td{border-bottom:2px dashed #25d56f!important}.qualification-note{padding:8px 10px;color:#76e7a2;font-size:11px;font-weight:900;text-align:center}
+    @media(max-width:700px){.app{padding:0 8px}.brand-copy h1{font-size:17px!important}.brand-copy p{font-size:9px!important;letter-spacing:.1em!important}.league-logo{width:48px;height:48px}.header-actions{gap:5px}.install-btn,.login-btn{padding:9px 10px!important;font-size:11px!important}.primary-nav{position:fixed;bottom:0;left:0;right:0;top:auto;z-index:70;margin:0;border-radius:0;border-width:1px 0 0;background:rgba(3,10,20,.98);padding-bottom:env(safe-area-inset-bottom)}.primary-nav button{flex-direction:column;gap:2px;padding:8px 4px!important;font-size:17px}.primary-nav button span{font-size:10px}.competition-context-wrap{margin:8px 0}.competition-context{width:100%;font-size:12px}.hero{margin-bottom:10px}.more-menu{grid-template-columns:1fr}.competition-overview-hero{grid-template-columns:1fr}.competition-switcher-modal{align-items:flex-end;padding:0}.competition-switcher-sheet{width:100%;border-radius:20px 20px 0 0;padding-bottom:calc(18px + env(safe-area-inset-bottom))}footer{display:none}main{padding-bottom:86px}}
   </style>
 </head>
 <body>
@@ -438,11 +472,17 @@
     <div class="header-row">
       <div class="brand">
         <img src="league-logo.png" class="league-logo" alt="Intra Squad Sunday League logo">
-        <div class="brand-copy"><h1>Intra Squad</h1><p>Sunday League</p><div id="adminStatus" class="admin-status">Connecting to live data…</div></div>
+        <div class="brand-copy"><h1>Intra Squad Sunday League</h1><p>Football • Friendship • Community</p><div id="adminStatus" class="admin-status">Connecting to live data…</div></div>
       </div>
       <div class="header-actions"><button id="installAppBtn" class="install-btn show" type="button">⬇ Install App</button><button id="authBtn" class="login-btn" type="button">👤 Admin</button></div>
     </div>
   </header>
+
+  <div class="competition-context-wrap">
+    <button id="competitionSwitcherBtn" class="competition-context" type="button" aria-haspopup="dialog">
+      <span class="context-label">Viewing:</span> <strong id="competitionContextName">Season 1 • League</strong> <span>⌄</span>
+    </button>
+  </div>
 
   <div class="hero">
     <div class="kpis">
@@ -452,15 +492,12 @@
     </div>
   </div>
 
-  <nav id="tabs">
-    <button data-tab="home" class="active">Home</button>
-    <button data-tab="fixtures">Fixtures</button>
-    <button data-tab="standings">Standings</button>
-    <button data-tab="teams">Teams</button>
-    <button data-tab="top-scorers">Top Scorers</button>
-    <button data-tab="awards">Awards</button>
-    <button data-tab="gallery">Gallery</button>
-    <button data-tab="future-events">Future Events</button>
+  <nav id="tabs" class="primary-nav">
+    <button data-tab="home" class="active">⌂ <span>Home</span></button>
+    <button data-tab="competitions">🏆 <span>Competitions</span></button>
+    <button data-tab="fixtures">▣ <span>Fixtures</span></button>
+    <button data-tab="teams">♟ <span>Teams</span></button>
+    <button data-tab="more">••• <span>More</span></button>
     <button data-tab="admin" id="adminTab" class="admin-hidden">Admin</button>
   </nav>
 
@@ -499,8 +536,8 @@
       </div>
       <div id="homeNoLive" class="home-no-live">
         <img src="league-logo.png" class="league-mark" alt="League logo">
-        <h2>Intra Squad Sunday League</h2>
-        <p>Live scores, fixtures, standings, team sheets and player statistics.</p>
+        <div class="current-pill">CURRENT VIEW</div><h2 id="homeCompetitionTitle">Intra Squad Sunday League — Season 1 • League</h2>
+        <p id="homeCompetitionMeta">Live scores, fixtures, standings, team sheets and player statistics.</p>
       </div>
       <div class="home-dashboard">
         <div class="card">
@@ -508,8 +545,8 @@
           <div id="nextFixture" class="upcoming-fixtures">Upcoming fixtures loading…</div>
         </div>
         <div class="card home-standings">
-          <div class="home-card-title"><h3><span class="home-card-icon">📊</span> League Standings</h3><span class="muted">Top 3</span></div>
-          <div style="overflow:auto"><table><thead><tr><th>#</th><th>Team</th><th>P</th><th>GD</th><th>Pts</th></tr></thead><tbody id="homeStandingsBody"></tbody></table></div>
+          <div class="home-card-title"><h3><span class="home-card-icon">📊</span> Standings</h3><button class="text-link" type="button" data-open-tab="standings">Full Table</button></div>
+          <div class="standings-scroll"><table><thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr></thead><tbody id="homeStandingsBody"></tbody></table></div>
         </div>
         <div class="card">
           <div class="home-card-title"><h3><span class="home-card-icon">🏆</span> Top Scorers</h3></div>
@@ -525,21 +562,27 @@
         <button class="quick-link" type="button" onclick="document.querySelector('[data-tab=fixtures]').click()"><span class="qicon">👥</span><span><strong>Lineups</strong><span>Open a live or completed fixture</span></span></button>
         <button class="quick-link" type="button" onclick="document.querySelector('[data-tab=teams]').click()"><span class="qicon">🛡️</span><span><strong>Teams</strong><span>View teams, jerseys & squads</span></span></button>
         <button class="quick-link" type="button" onclick="document.querySelector('[data-tab=fixtures]').click()"><span class="qicon"><svg class="neutral-calendar" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"/></svg></span><span><strong>Fixtures</strong><span>All upcoming matches</span></span></button>
-        <button class="quick-link" type="button" onclick="document.querySelector('[data-tab=awards]').click()"><span class="qicon">🏅</span><span><strong>Awards</strong><span>Season leaders & fair play</span></span></button>
-        <button class="quick-link" type="button" onclick="document.querySelector('[data-tab=gallery]').click()"><span class="qicon">▣</span><span><strong>Gallery</strong><span>Match photos & videos</span></span></button>
+        <button class="quick-link" type="button" data-open-tab="awards"><span class="qicon">🏅</span><span><strong>Awards</strong><span>Season leaders & fair play</span></span></button>
+        <button class="quick-link" type="button" data-open-tab="gallery"><span class="qicon">▣</span><span><strong>Gallery</strong><span>Match photos & videos</span></span></button>
       </div>
     </section>
 
+    <section id="competitions">
+      <div class="section-heading"><div><h2>Competitions</h2><div class="muted">Seasons, league competitions and standalone tournaments.</div></div></div>
+      <div id="competitionsCatalog" class="competition-catalog"></div>
+      <div id="competitionOverviewCard" class="card competition-overview-card"></div>
+    </section>
+
     <section id="fixtures">
-      <div class="card">
-        <h2>All fixtures</h2>
+      <div class="context-page-title"><span id="fixturesCompetitionName"></span></div><div class="card">
+        <h2>Fixtures</h2>
         <div id="fixtureList"></div>
       </div>
     </section>
 
     <section id="standings">
-      <div class="card">
-        <h2>League table</h2>
+      <div class="context-page-title"><span id="standingsCompetitionName"></span></div><div class="card">
+        <h2>Standings</h2>
         <div id="liveTableNotice" class="live-table-notice" style="display:none"></div>
         <div style="overflow:auto">
           <table>
@@ -551,14 +594,24 @@
     </section>
 
     <section id="teams">
-      <div id="teamCards" class="grid"></div>
+      <div class="context-page-title"><span id="teamsCompetitionName"></span></div><div id="teamCards" class="grid"></div>
     </section>
 
     <section id="top-scorers">
+      <div class="context-page-title"><span id="statsCompetitionName"></span></div>
       <div class="card">
-        <h2>Top Scorers</h2>
-        <div class="muted" style="margin-bottom:8px">Players are ranked by goals scored, then assists.</div>
-        <div id="topScorersFull"></div>
+        <h2>Stats</h2>
+        <div class="stats-tabs" role="tablist">
+          <button class="stats-tab active" data-stats-panel="goals" type="button">Goals</button>
+          <button class="stats-tab" data-stats-panel="assists" type="button">Assists</button>
+          <button class="stats-tab" data-stats-panel="cards" type="button">Cards</button>
+          <button class="stats-tab" data-stats-panel="potm" type="button">POTM</button>
+          <button class="stats-tab" data-open-tab="awards" type="button">Awards</button>
+        </div>
+        <div class="stats-panel active" data-stats-content="goals"><div id="topScorersFull"></div></div>
+        <div class="stats-panel" data-stats-content="assists"><div id="assistsLeaders"></div></div>
+        <div class="stats-panel" data-stats-content="cards"><div id="cardsLeaders"></div></div>
+        <div class="stats-panel" data-stats-content="potm"><div id="potmLeaders"></div></div>
       </div>
     </section>
 <section id="awards">
@@ -569,6 +622,20 @@
       </div>
     </section>
 
+
+    <section id="more">
+      <div class="card">
+        <h2>More</h2>
+        <div class="more-menu">
+          <button type="button" data-open-tab="standings"><span>📊</span><strong>Standings</strong><small>Full competition table</small></button>
+          <button type="button" data-open-tab="top-scorers"><span>📈</span><strong>Stats</strong><small>Goals, assists, cards & POTM</small></button>
+          <button type="button" data-open-tab="awards"><span>🏆</span><strong>Awards</strong><small>Competition leaders & fair play</small></button>
+          <button type="button" data-open-tab="gallery"><span>▣</span><strong>Gallery</strong><small>Photos and videos</small></button>
+          <button type="button" data-open-tab="future-events"><span>📅</span><strong>Future Events</strong><small>Upcoming dates</small></button>
+          <button type="button" id="moreAdminBtn"><span>⚙</span><strong>Admin</strong><small>Match and competition management</small></button>
+        </div>
+      </div>
+    </section>
 
     <section id="future-events">
       <div class="card">
@@ -620,6 +687,22 @@
     </section>
 
     <section id="admin">
+      <div class="card competition-admin-card">
+        <h2>Competition Management</h2>
+        <div class="muted">Choose the competition you are editing. Each competition has its own roster, fixtures, events, stats and gallery.</div>
+        <div class="row" style="margin-top:12px">
+          <label>Competition<select id="adminCompetitionSelect"></select></label>
+          <label>Status<select id="adminCompetitionStatus"><option value="upcoming">Upcoming</option><option value="current">Current</option><option value="completed">Completed</option></select></label>
+        </div>
+        <div class="competition-admin-actions">
+          <button id="switchAdminCompetitionBtn" class="btn secondary" type="button">Open Competition</button>
+          <button id="saveCompetitionStatusBtn" class="btn secondary" type="button">Save Status</button>
+          <button id="setCurrentCompetitionBtn" class="btn success" type="button">Set as Current</button>
+          <button id="initializeCompetitionBtn" class="btn" type="button">Initialize Empty Competition</button>
+        </div>
+        <div id="competitionAdminStatus" class="backup-status">Season 1 League remains preserved as the legacy live-data document.</div>
+      </div>
+
       <div class="card control-center">
         <h2>League Control Center</h2>
         <div class="muted">Start, pause, resume, score, manage events and end the selected match. Changes are visible publicly in real time.</div>
@@ -764,13 +847,41 @@
         <div id="managePlayerSummary" class="muted" style="margin-top:12px"></div>
       </div>
 
+      <div class="card" style="margin-top:12px">
+        <h3>Fixture Management</h3>
+        <div class="muted">Create fixtures for the selected competition. For a League + Final competition, use “1st Place” and “2nd Place” for the Final.</div>
+        <form id="fixtureManagementForm" style="margin-top:12px">
+          <div class="row">
+            <label>Edit fixture<select id="fixtureManageSelect"><option value="NEW">+ New fixture</option></select></label>
+            <label>Week / Round<input id="fixtureManageWeek" type="number" min="1" value="1"></label>
+          </div>
+          <div class="row">
+            <label>Home team<select id="fixtureManageHome"></select></label>
+            <label>Away team<select id="fixtureManageAway"></select></label>
+          </div>
+          <div class="row">
+            <label>Date<input id="fixtureManageDate" type="date"></label>
+            <label>Time<input id="fixtureManageTime" type="time"></label>
+          </div>
+          <label>Venue<input id="fixtureManageVenue" value="De Anza High School"></label>
+          <div class="competition-admin-actions"><button class="btn" type="submit">Save Fixture</button><button id="deleteManagedFixtureBtn" class="btn danger" type="button">Delete Selected Fixture</button></div>
+        </form>
+      </div>
+
       <div id="notice" class="notice" style="margin-top:12px">Saved.</div>
     </section>
   </main>
 
-  <footer>© 2026 Intra Squad Sunday League • Passion. Community. Football. • v1.0.12</footer>
+  <footer>© 2026 Intra Squad Sunday League • Passion. Community. Football. • v1.1.0</footer>
 </div>
 
+
+<div id="competitionSwitcherModal" class="modal-backdrop competition-switcher-modal" role="dialog" aria-modal="true" aria-labelledby="competitionSwitcherTitle">
+  <div class="modal competition-switcher-sheet">
+    <div class="modal-head"><h2 id="competitionSwitcherTitle">Switch Competition</h2><button id="closeCompetitionSwitcher" class="icon-btn" type="button" aria-label="Close">×</button></div>
+    <div id="competitionSwitcherList" class="competition-switch-list"></div>
+  </div>
+</div>
 
 <div id="playerProfileModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="playerProfileTitle">
   <div class="modal" style="width:min(520px,100%)">
@@ -795,7 +906,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script>
-  window.ISSL_APP_VERSION = "1.0.6";
+  window.ISSL_APP_VERSION = "1.1.0";
   // Keep installed PWAs/phones and desktop browsers on the same deployed release.
   (async()=>{
     try{
@@ -829,6 +940,6 @@
     }catch(e){ console.warn("Version check unavailable",e); }
   })();
 </script>
-<script src="app.js?v=1.0.2"></script>
+<script src="app.js?v=1.1.0"></script>
 </body>
 </html>

@@ -1,25 +1,17 @@
-# Intra Squad Sunday League v1.0.1
+# Intra Squad Sunday League — v1.1.0
 
-Free Gallery Edition.
+This release adds multi-season and multi-competition support while preserving the existing Season 1 League Firestore data in `league/current`.
 
-Gallery works without Firebase Storage.
+## Main navigation
+Home • Competitions • Fixtures • Teams • More
 
-Admin:
-1. Log in.
-2. Open Gallery.
-3. Choose a match.
-4. Choose Photo or Video.
-5. Paste a public HTTPS link.
-6. Add an optional caption.
-7. Click **Add to Match Gallery**.
+A permanent **Viewing: …** competition switcher lets users move between Season 1, Season 2, Super Cups, Dashain Cup 2026 and New Year Cup 2026.
 
-Recommended:
-- Videos: YouTube.
-- Photos: any direct public HTTPS image URL.
+## Data model
+- Season 1 League remains in `league/current` (legacy data preserved).
+- Future competitions use separate documents such as `league/competition_S2_LEAGUE`.
+- Each competition has its own players/roster, fixtures, events, scores, stats and lineups.
+- Gallery records are competition-scoped; old gallery records without a `competitionId` remain attached to Season 1 League.
+- Competition catalog/current selection is stored in `league/config`.
 
-Media remains attached to the correct match and appears in:
-- Gallery
-- Live Match Gallery tab
-- Live/completed fixture details
-
-Publish the included `firestore.rules` once so gallery data is public-read/admin-write.
+Always download a backup before major admin changes.

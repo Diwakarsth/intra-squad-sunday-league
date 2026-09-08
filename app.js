@@ -1,4 +1,4 @@
-const APP_VERSION = "1.1.1";
+const APP_VERSION = "1.1.3";
 const firebaseConfig = {
   apiKey: "AIzaSyAh6B75N8AK1TmIXUz1thxzoKxToeztf08",
   authDomain: "intra-squad-sunday-league.firebaseapp.com",
@@ -1415,6 +1415,70 @@ function renderLiveMatch(){
   }
 }
 function selectedControlMatch(){const id=document.querySelector("#controlMatch")?.value;return data.fixtures.find(f=>f.id===id)||data.fixtures[0];}
+function potmCandidatesForMatch(f){
+  if(!f)return [];
+  const homeId=actualFixtureTeamId(f,"home"), awayId=actualFixtureTeamId(f,"away");
+  const matchPlayerIds=new Set([
+    ...(fixtureLineups(f).home||[]),
+    ...(fixtureLineups(f).away||[]),
+    ...data.events.filter(e=>e.matchId===f.id).flatMap(e=>[e.playerId,e.playerOutId,e.playerInId].filter(Boolean))
+  ]);
+  if(!matchPlayerIds.size){
+    data.players.filter(p=>[homeId,awayId].includes(p.teamId)).forEach(p=>matchPlayerIds.add(p.id));
+  }
+  const ev=data.events.filter(e=>e.matchId===f.id && e.type!=="Player of the Match");
+  const homeWon=Number(f.homeScore)>Number(f.awayScore), awayWon=Number(f.awayScore)>Number(f.homeScore);
+  const winnerId=homeWon?homeId:awayWon?awayId:"";
+  const scores=new Map();
+  matchPlayerIds.forEach(id=>scores.set(id,{score:0,goals:0,assists:0,yellow:0,red:0,ownGoals:0}));
+  ev.forEach(e=>{
+    const r=scores.get(e.playerId); if(!r)return;
+    if(e.type==="Goal"){r.goals++;r.score+=4;}
+    else if(e.type==="Assist"){r.assists++;r.score+=2;}
+    else if(e.type==="Yellow Card"){r.yellow++;r.score-=1;}
+    else if(e.type==="Red Card"){r.red++;r.score-=3;}
+    else if(e.type==="Own Goal"){r.ownGoals++;r.score-=2;}
+  });
+  const existingPotm=data.events.find(e=>e.matchId===f.id&&e.type==="Player of the Match");
+  return [...scores.entries()].map(([playerId,r])=>{
+    const p=data.players.find(x=>x.id===playerId);
+    if(!p)return null;
+    if(winnerId && p.teamId===winnerId && (r.goals||r.assists))r.score+=0.5;
+    return {...r,playerId,name:p.name,teamId:p.teamId,isCurrentPotm:existingPotm?.playerId===playerId};
+  }).filter(Boolean).sort((a,b)=>b.score-a.score||b.goals-a.goals||b.assists-a.assists||a.yellow-b.yellow||a.name.localeCompare(b.name)).slice(0,3);
+}
+function potmPerformanceText(c){
+  const bits=[];
+  if(c.goals)bits.push(`${c.goals} Goal${c.goals===1?"":"s"}`);
+  if(c.assists)bits.push(`${c.assists} Assist${c.assists===1?"":"s"}`);
+  if(c.yellow)bits.push(`${c.yellow} YC`);
+  if(c.red)bits.push(`${c.red} RC`);
+  if(c.ownGoals)bits.push(`${c.ownGoals} OG`);
+  return bits.length?bits.join(" • "):"No scoring events recorded";
+}
+function renderPotmRecommendation(f){
+  const card=document.querySelector("#potmRecommendationCard"), list=document.querySelector("#potmRecommendationList");
+  if(!card||!list)return;
+  if(!f||normalizedStatus(f)!=="finished"){card.style.display="none";list.innerHTML="";return;}
+  card.style.display="block";
+  const existing=data.events.find(e=>e.matchId===f.id&&e.type==="Player of the Match");
+  const candidates=potmCandidatesForMatch(f);
+  if(!candidates.length){list.innerHTML='<div class="muted">No eligible players found for this match.</div>';return;}
+  list.innerHTML=candidates.map((c,i)=>`<div class="potm-recommendation-row">
+    <div class="potm-recommendation-main"><strong>${i===0?"Recommended: ":""}${c.name}${c.isCurrentPotm?' <span class="badge">Selected POTM</span>':""}</strong><small class="muted">${teamName(c.teamId)} • ${potmPerformanceText(c)}${i===0?" • Highest performance score":""}</small></div>
+    <div class="potm-recommendation-actions"><button class="btn ${c.isCurrentPotm?"secondary":"success"}" type="button" data-select-potm="${c.playerId}" ${c.isCurrentPotm?"disabled":""}>${c.isCurrentPotm?"Selected":"Select as POTM"}</button></div>
+  </div>`).join("") + (existing?'<div class="muted" style="margin-top:8px">Selecting another player replaces the current POTM for this match.</div>':'');
+}
+async function selectRecommendedPotm(playerId){
+  if(!isAdmin)return openLogin();
+  const f=selectedControlMatch(); if(!f||normalizedStatus(f)!=="finished")return alert("POTM can be selected after the match is completed.");
+  const player=data.players.find(p=>p.id===playerId); if(!player)return alert("Player not found.");
+  const homeId=actualFixtureTeamId(f,"home"),awayId=actualFixtureTeamId(f,"away");
+  if(![homeId,awayId].includes(player.teamId))return alert("This player is not eligible for this match.");
+  data.events=data.events.filter(e=>!(e.matchId===f.id&&e.type==="Player of the Match"));
+  data.events.push({id:"E"+Date.now(),matchId:f.id,playerId:player.id,teamId:player.teamId,type:"Player of the Match",minute:Math.floor(Number(f.elapsedSeconds||0)/60),createdAtMs:Date.now()});
+  try{await save();flash();render();}catch(err){alert(err.message);}
+}
 function renderControlCenter(){
   const f=selectedControlMatch(); if(!f)return;
   const status=normalizedStatus(f);
@@ -1434,6 +1498,7 @@ function renderControlCenter(){
   document.querySelector("#resetCompletedMatchBtn").disabled=status!=="finished";
   document.querySelector("#homeGoalBtn").disabled=status!=="live";
   document.querySelector("#awayGoalBtn").disabled=status!=="live";
+  renderPotmRecommendation(f);
   renderLineupManager();
 }
 async function updateControlledMatch(mutator){
@@ -1978,6 +2043,11 @@ document.querySelector("#removeSelectedEventBtn").addEventListener("click",()=>{
 document.querySelector("#manageEventList").addEventListener("click",e=>{
   const btn=e.target.closest("[data-event-id]");
   if(btn)removeEvent(btn.dataset.eventId);
+});
+
+document.querySelector("#potmRecommendationList")?.addEventListener("click",e=>{
+  const btn=e.target.closest("[data-select-potm]");
+  if(btn)selectRecommendedPotm(btn.dataset.selectPotm);
 });
 
 

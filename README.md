@@ -1,8 +1,8 @@
-# Intra Squad Sunday League — v1.1.1
+# Intra Squad Sunday League — v1.1.3
 
 Mobile-first multi-competition league website with Firebase live data and Cloudinary gallery uploads.
 
-## v1.1.1 highlights
+## v1.1.3 highlights
 - Cleaner mobile Home page; the redundant **CURRENT VIEW** badge is removed.
 - Home standings keeps the full table but is compact enough for phone screens.
 - Admin can create future competitions directly from the website.
@@ -16,3 +16,5 @@ Mobile-first multi-competition league website with Firebase live data and Cloudi
 - Gallery remains competition-specific and can optionally be tied to a fixture.
 
 Existing Season 1 Firebase data remains in `league/current` and is not migrated or overwritten by this release.
+
+- Full-time POTM recommendation based on recorded goals, assists and card/own-goal penalties. Admin always makes the final selection.

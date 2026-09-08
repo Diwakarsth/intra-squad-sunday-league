@@ -434,7 +434,7 @@
     .final-auto-note{font-size:11px;color:#7dd3fc;margin-top:4px}
     .final-resolution-banner{margin-bottom:12px;padding:10px 12px;border:1px solid rgba(125,211,252,.35);border-radius:10px;background:rgba(125,211,252,.06);font-size:12px;font-weight:800;color:#d9f5ff}
 
-    /* ===== v1.1.1 Multi-Competition Interface ===== */
+    /* ===== v1.1.2 Multi-Competition Interface ===== */
     .competition-context-wrap{display:flex;justify-content:center;margin:12px 0}
     .competition-context{border:1px solid #1aa864;background:#071b24;color:#dfffee;border-radius:12px;padding:10px 16px;cursor:pointer;box-shadow:0 7px 22px rgba(0,0,0,.16)}
     .competition-context .context-label{color:#9bb4c9;margin-right:5px}.competition-context strong{color:#72efad}
@@ -465,7 +465,7 @@
     .qualification-row td{border-bottom:2px dashed #25d56f!important}.qualification-note{padding:8px 10px;color:#76e7a2;font-size:11px;font-weight:900;text-align:center}
     @media(max-width:700px){.app{padding:0 8px}.brand-copy h1{font-size:17px!important}.brand-copy p{font-size:9px!important;letter-spacing:.1em!important}.league-logo{width:48px;height:48px}.header-actions{gap:5px}.install-btn,.login-btn{padding:9px 10px!important;font-size:11px!important}.primary-nav{position:fixed;bottom:0;left:0;right:0;top:auto;z-index:70;margin:0;border-radius:0;border-width:1px 0 0;background:rgba(3,10,20,.98);padding-bottom:env(safe-area-inset-bottom)}.primary-nav button{flex-direction:column;gap:2px;padding:8px 4px!important;font-size:17px}.primary-nav button span{font-size:10px}.competition-context-wrap{margin:8px 0}.competition-context{width:100%;font-size:12px}.hero{margin-bottom:10px}.more-menu{grid-template-columns:1fr}.competition-overview-hero{grid-template-columns:1fr}.competition-switcher-modal{align-items:flex-end;padding:0}.competition-switcher-sheet{width:100%;border-radius:20px 20px 0 0;padding-bottom:calc(18px + env(safe-area-inset-bottom))}footer{display:none}main{padding-bottom:86px}}
   
-    /* ===== v1.1.1 Clean Mobile Home + safer Admin ===== */
+    /* ===== v1.1.2 Clean Responsive Tables + safer Admin ===== */
     body{overflow-x:hidden}
     .app,main,section,.home-dashboard,.home-dashboard>*{min-width:0;max-width:100%}
     #home .home-no-live{padding:18px 14px;margin-bottom:12px}
@@ -505,7 +505,38 @@
       #home .quick-links{grid-template-columns:1fr}
     }
 
-  </style>
+    /* ===== v1.1.2: standings always fit the current screen; never horizontally scroll ===== */
+    .standings-scroll,.full-standings-fit{width:100%;max-width:100%;overflow:visible!important}
+    .standings-scroll table,.full-standings-fit table{width:100%;max-width:100%;min-width:0!important;table-layout:fixed}
+    .full-standings-fit th,.full-standings-fit td{box-sizing:border-box}
+    @media(min-width:701px){
+      .standings-scroll table,.full-standings-fit table{font-size:14px}
+      .standings-scroll th,.standings-scroll td,.full-standings-fit th,.full-standings-fit td{padding:10px 8px}
+      .full-standings-fit th:nth-child(2),.full-standings-fit td:nth-child(2){width:32%;text-align:left}
+    }
+    @media(max-width:700px){
+      #standings .card{padding:10px 6px}
+      .full-standings-fit table{font-size:9px}
+      .full-standings-fit th,.full-standings-fit td{padding:7px 1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+      .full-standings-fit th:nth-child(1),.full-standings-fit td:nth-child(1){width:6%}
+      .full-standings-fit th:nth-child(2),.full-standings-fit td:nth-child(2){width:29%;text-align:left}
+      .full-standings-fit th:nth-child(n+3),.full-standings-fit td:nth-child(n+3){width:8.125%}
+      .full-standings-fit .mini-team-logo{display:none}
+    }
+    @media(max-width:390px){
+      .full-standings-fit table{font-size:8px}
+      .full-standings-fit th,.full-standings-fit td{padding:6px 0}
+    }
+
+  
+    .potm-recommendation-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+    .potm-recommendation-row:last-child{border-bottom:0}
+    .potm-recommendation-main{min-width:0}
+    .potm-recommendation-main strong{display:block}
+    .potm-recommendation-main small{display:block;margin-top:3px}
+    .potm-recommendation-actions{flex:0 0 auto}
+    @media(max-width:600px){.potm-recommendation-row{align-items:flex-start;flex-direction:column}.potm-recommendation-actions,.potm-recommendation-actions .btn{width:100%}}
+</style>
 </head>
 <body>
 <div class="app">
@@ -622,7 +653,7 @@
       <div class="context-page-title"><span id="standingsCompetitionName"></span></div><div class="card">
         <h2>Standings</h2>
         <div id="liveTableNotice" class="live-table-notice" style="display:none"></div>
-        <div style="overflow:auto">
+        <div class="full-standings-fit">
           <table>
             <thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th></tr></thead>
             <tbody id="standingsBody"></tbody>
@@ -771,6 +802,11 @@
           <button id="resumeMatchBtn" class="btn secondary" type="button">Resume</button>
           <button id="endMatchBtn" class="btn danger" type="button">End Match</button>
           <button id="resetCompletedMatchBtn" class="btn danger" type="button">Reset Completed Match</button>
+        </div>
+        <div id="potmRecommendationCard" class="admin-subsection" style="display:none">
+          <h3 style="margin:0 0 6px">⭐ POTM Recommendation</h3>
+          <div class="muted">Suggested from recorded match events. Admin makes the final selection.</div>
+          <div id="potmRecommendationList" style="margin-top:10px"></div>
         </div>
         <label class="setting-toggle"><input id="liveStandingsToggle" type="checkbox" checked> <span><strong>Update standings during live matches</strong><small>Public table includes the current live score and shows a LIVE TABLE notice.</small></span></label>
 
@@ -928,7 +964,7 @@
     </section>
   </main>
 
-  <footer>© 2026 Intra Squad Sunday League • Passion. Community. Football. • v1.1.1</footer>
+  <footer>© 2026 Intra Squad Sunday League • Passion. Community. Football. • v1.1.3</footer>
 </div>
 
 
@@ -962,7 +998,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script>
-  window.ISSL_APP_VERSION = "1.1.1";
+  window.ISSL_APP_VERSION = "1.1.3";
   // Keep installed PWAs/phones and desktop browsers on the same deployed release.
   (async()=>{
     try{
@@ -996,6 +1032,6 @@
     }catch(e){ console.warn("Version check unavailable",e); }
   })();
 </script>
-<script src="app.js?v=1.1.1"></script>
+<script src="app.js?v=1.1.3"></script>
 </body>
 </html>

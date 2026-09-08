@@ -1,3 +1,23 @@
+# v1.1.3 — POTM Recommendation
+
+- Added automatic Player of the Match recommendations after a fixture reaches Full Time.
+- Recommendations use recorded match events: goals and assists add weight; yellow/red cards and own goals reduce it.
+- Shows up to three candidates, with the strongest candidate first.
+- Admin must confirm the POTM; the site never awards it automatically.
+- Selecting a different candidate replaces the existing POTM for that fixture, preserving the one-POTM-per-match rule.
+- v1.1.2 responsive non-scroll standings behavior is preserved.
+- PWA/app version and cache updated to 1.1.3.
+
+# v1.1.2 — Responsive Standings
+
+- Standings tables now fit the available screen width on phone, tablet, laptop, and desktop.
+- Removed horizontal scrolling from both Home standings and the full Standings page.
+- Desktop/laptop keeps a full readable table with all columns visible at once.
+- Phone layouts use compact typography, spacing, and hidden mini logos to preserve all table columns without page/table scrolling.
+- No qualification dotted line or extra standings decoration is added.
+- Existing competition management, roster management, fixture management, gallery, and Firebase data behavior from v1.1.1 are preserved.
+- PWA/app version updated to 1.1.2 and cache updated to `issl-v1.1.2`.
+
 # v1.1.1 — Mobile & Competition Management
 
 ## Home / mobile

@@ -1,3 +1,13 @@
+# v1.1.4 — Current Competition Home Default
+
+- Fresh website/app opens and reloads now select the competition marked **Current** in `league/config`.
+- Removed persistence of a visitor’s last-viewed competition, so browsing history no longer controls the next Home screen.
+- Visitors can still switch competitions during the current browsing session.
+- Admin **Set as Current** remains the only action that changes the default competition for everyone.
+- Existing Firebase competition data and Season 1 data are not migrated or overwritten.
+- POTM recommendation and v1.1.2 responsive non-scroll standings are preserved.
+- PWA/app version and cache updated to 1.1.4.
+
 # v1.1.3 — POTM Recommendation
 
 - Added automatic Player of the Match recommendations after a fixture reaches Full Time.

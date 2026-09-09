@@ -1,4 +1,4 @@
-const APP_VERSION = "1.1.3";
+const APP_VERSION = "1.1.4";
 const firebaseConfig = {
   apiKey: "AIzaSyAh6B75N8AK1TmIXUz1thxzoKxToeztf08",
   authDomain: "intra-squad-sunday-league.firebaseapp.com",
@@ -31,7 +31,9 @@ const DEFAULT_COMPETITIONS = [
 ];
 let competitions = structuredClone(DEFAULT_COMPETITIONS);
 let currentCompetitionId = "S1_LEAGUE";
-let selectedCompetitionId = localStorage.getItem("issl-selected-competition") || currentCompetitionId;
+let selectedCompetitionId = currentCompetitionId;
+// Competition browsing is session-only. A fresh open/reload always starts on the Admin-selected Current competition.
+try{ localStorage.removeItem("issl-selected-competition"); }catch{}
 let unsubscribeCompetitionConfig = null;
 let competitionConfigLoaded = false;
 
@@ -445,7 +447,6 @@ function filterMediaForSelectedCompetition(){
 function switchCompetition(id,{openHome=false}={}){
   if(!competitionById(id))return;
   selectedCompetitionId=id;
-  localStorage.setItem("issl-selected-competition",id);
   leagueRef=competitionDocRef(id);
   expandedFixtureId="";
   filterMediaForSelectedCompetition();
@@ -459,17 +460,44 @@ function switchCompetition(id,{openHome=false}={}){
 function startCompetitionConfig(){
   if(unsubscribeCompetitionConfig)unsubscribeCompetitionConfig();
   unsubscribeCompetitionConfig=leagueConfigRef.onSnapshot(async snap=>{
+    const firstConfigLoad=!competitionConfigLoaded;
     competitionConfigLoaded=true;
+    let selectionChanged=false;
     if(snap.exists){
       const cfg=snap.data()||{};
       if(Array.isArray(cfg.competitions)&&cfg.competitions.length)competitions=cfg.competitions;
       currentCompetitionId=cfg.currentCompetitionId && competitionById(cfg.currentCompetitionId)?cfg.currentCompetitionId:currentCompetitionId;
-      if(!competitionById(selectedCompetitionId))selectedCompetitionId=currentCompetitionId;
+      // On every fresh page/app load, use the competition Admin marked Current.
+      // After that, visitors may browse another competition without changing the default for their next visit.
+      if(firstConfigLoad){
+        selectedCompetitionId=currentCompetitionId;
+        selectionChanged=true;
+      }else if(!competitionById(selectedCompetitionId)){
+        selectedCompetitionId=currentCompetitionId;
+        selectionChanged=true;
+      }
     }else if(isAdmin){
       await leagueConfigRef.set({competitions:structuredClone(DEFAULT_COMPETITIONS),currentCompetitionId,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
     }
+    if(firstConfigLoad || selectionChanged){
+      leagueRef=competitionDocRef(selectedCompetitionId);
+      filterMediaForSelectedCompetition();
+      startLiveData();
+      renderGallery();
+      renderAdminGallery();
+    }
     renderCompetitionUI();
-  },err=>{console.warn("Competition config unavailable",err);renderCompetitionUI();});
+  },err=>{
+    console.warn("Competition config unavailable",err);
+    // Offline/config failure fallback: open the built-in current competition instead of leaving Home empty.
+    if(!competitionConfigLoaded){
+      competitionConfigLoaded=true;
+      selectedCompetitionId=currentCompetitionId;
+      leagueRef=competitionDocRef(selectedCompetitionId);
+      startLiveData();
+    }
+    renderCompetitionUI();
+  });
 }
 
 function renderCompetitionUI(){
@@ -1842,7 +1870,7 @@ async function createCompetitionFromAdmin(){
   await persistCompetitionConfig();
   await competitionDocRef(id).set({...emptyCompetitionData(),competitionId:id,createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
   document.querySelector("#newCompetitionName").value="";
-  selectedCompetitionId=id;localStorage.setItem("issl-selected-competition",id);leagueRef=competitionDocRef(id);
+  selectedCompetitionId=id;leagueRef=competitionDocRef(id);
   renderCompetitionUI();startLiveData();renderGallery();renderAdminGallery();
   document.querySelector("#competitionAdminStatus").textContent=`${name} created. Add its players and fixtures below.`;
 }
@@ -1864,7 +1892,7 @@ async function deleteCompetitionFromAdmin(){
     const batch=db.batch();mediaSnap.docs.forEach(doc=>batch.delete(doc.ref));batch.delete(competitionDocRef(id));await batch.commit();
     competitions=competitions.filter(x=>x.id!==id);
     await persistCompetitionConfig();
-    if(selectedCompetitionId===id){selectedCompetitionId=currentCompetitionId;localStorage.setItem("issl-selected-competition",selectedCompetitionId);leagueRef=competitionDocRef(selectedCompetitionId);startLiveData();}
+    if(selectedCompetitionId===id){selectedCompetitionId=currentCompetitionId;leagueRef=competitionDocRef(selectedCompetitionId);startLiveData();}
     renderCompetitionUI();filterMediaForSelectedCompetition();renderGallery();renderAdminGallery();
     document.querySelector("#competitionAdminStatus").textContent=`${c.name} deleted. Cloudinary originals, if any, are not deleted from Cloudinary.`;
   }catch(err){alert(`Unable to delete competition: ${err.message}`);}
@@ -2303,7 +2331,7 @@ document.querySelector("#playerProfileModal")?.addEventListener("click",e=>{
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeLogin();closePlayerProfile();}});
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("sw.js?v=1.1.1").then(reg=>{
+  navigator.serviceWorker.register("sw.js?v=1.1.4").then(reg=>{
     reg.update().catch(()=>{});
     reg.addEventListener("updatefound",()=>{
       const worker=reg.installing;
@@ -2323,7 +2351,6 @@ if("serviceWorker" in navigator){
 }
 render();
 updateAuthUI();
-startLiveData();
 startMediaData();
 startCompetitionConfig();
 

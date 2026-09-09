@@ -1,6 +1,13 @@
-# Intra Squad Sunday League — v1.1.3
+# Intra Squad Sunday League — v1.1.4
 
 Mobile-first multi-competition league website with Firebase live data and Cloudinary gallery uploads.
+
+
+## v1.1.4 highlights
+- Home now opens the competition that Admin has marked **Current** on every fresh website/app open or reload.
+- Browsing a past or future competition is temporary and no longer becomes the default on the visitor’s next visit.
+- Only **Set as Current** in Admin changes the competition everyone sees first.
+- Existing v1.1.3 POTM recommendation, responsive non-scroll standings, competition management, rosters, fixtures, gallery, backups, and Season 1 preservation are unchanged.
 
 ## v1.1.3 highlights
 - Cleaner mobile Home page; the redundant **CURRENT VIEW** badge is removed.

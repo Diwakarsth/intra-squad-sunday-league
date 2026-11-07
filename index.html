@@ -536,7 +536,19 @@
     .potm-recommendation-main small{display:block;margin-top:3px}
     .potm-recommendation-actions{flex:0 0 auto}
     @media(max-width:600px){.potm-recommendation-row{align-items:flex-start;flex-direction:column}.potm-recommendation-actions,.potm-recommendation-actions .btn{width:100%}}
-</style>
+
+    /* v1.2: compact match awards, cleaner admin roster and social icon */
+    .compact-potm{display:block;max-width:100%;font-size:11px;line-height:1.35;color:#9a6a00;background:#fff5cc;border:1px solid #efd37c;border-radius:7px;padding:3px 6px;margin:4px auto 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .match-number{display:block;font-size:10px;font-weight:800;color:#2563eb;margin-bottom:3px}
+    .registered-picker{display:flex;align-items:end;gap:10px;flex-wrap:wrap;background:rgba(49,118,217,.07);border:1px solid var(--border);padding:12px;border-radius:12px;margin-bottom:12px}
+    .registered-picker label{flex:1;min-width:220px}.registered-picker small{flex-basis:100%;color:var(--muted)}
+    .team-name-link{cursor:pointer;color:#2373d5;text-decoration:underline;text-decoration-color:transparent}.team-name-link:hover{text-decoration-color:currentColor}
+    .instagram-follow{display:flex;justify-content:center;align-items:center;gap:12px;margin:20px auto 0;font-weight:700;color:var(--text)}
+    .instagram-follow a{display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:14px;background:linear-gradient(35deg,#ffba32,#e1306c,#833ab4);color:white;transition:transform .15s}
+    .instagram-follow a:hover{transform:translateY(-2px)}
+    #nextFixture{touch-action:pan-y}
+    @media(max-width:600px){.compact-potm{font-size:10px}.registered-picker label{min-width:100%}}
+  </style>
 </head>
 <body>
 <div class="app">
@@ -921,6 +933,7 @@
             <label id="transferTeamLabel" style="display:none">Transfer to<select id="transferPlayerTeam"></select></label>
           </div>
           <div id="addPlayerFields">
+            <div class="registered-picker"><label>Already registered in another competition?<select id="registeredPlayerSelect"><option value="">Choose registered player (optional)</option></select></label><button type="button" id="refreshRegisteredPlayers" class="btn secondary">↻ Load registered players</button><small>Pick a player to fill their details, then Add Player. Existing competition records stay unchanged.</small></div>
             <div class="row">
               <label>Player name<input id="manageNewPlayerName" placeholder="Enter player name"></label>
               <label>Jersey number (optional)<input id="manageNewPlayerNumber" type="number" min="1" max="99" placeholder="Leave blank"></label>
@@ -945,7 +958,7 @@
         <form id="fixtureManagementForm" style="margin-top:12px">
           <div class="row">
             <label>Edit fixture<select id="fixtureManageSelect"><option value="NEW">+ New fixture</option></select></label>
-            <label>Week / Round<input id="fixtureManageWeek" type="number" min="1" value="1"></label>
+            <label>Original Week / Round<input id="fixtureManageWeek" type="number" min="1" value="1"></label>
           </div>
           <div class="row">
             <label>Home team<select id="fixtureManageHome"></select></label>
@@ -964,7 +977,8 @@
     </section>
   </main>
 
-  <footer>© 2026 Intra Squad Sunday League • Passion. Community. Football. • v1.1.4</footer>
+  <div class="instagram-follow"><span>Follow the league</span><a href="https://www.instagram.com/hamro_sundayleague/" target="_blank" rel="noopener noreferrer" aria-label="Visit our Instagram profile" title="Instagram"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="18" cy="6" r="1" fill="currentColor" stroke="none"/></svg></a></div>
+  <footer>© 2026 Intra Squad Sunday League • Passion. Community. Football. • v1.2</footer>
 </div>
 
 
@@ -998,7 +1012,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script>
-  window.ISSL_APP_VERSION = "1.1.4";
+  window.ISSL_APP_VERSION = "1.2";
   // Keep installed PWAs/phones and desktop browsers on the same deployed release.
   (async()=>{
     try{
@@ -1032,6 +1046,6 @@
     }catch(e){ console.warn("Version check unavailable",e); }
   })();
 </script>
-<script src="app.js?v=1.1.4"></script>
+<script src="app.js?v=1.2"></script>
 </body>
 </html>

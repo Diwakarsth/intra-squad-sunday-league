@@ -1,3 +1,15 @@
+# v1.2 — UI and Competition Management Update
+
+- Swipeable upcoming fixture carousel on mobile, with chronological ordering and desktop arrows.
+- Compact POTM under full-time scores and in fixture list/details.
+- Display Match 1, Match 2, etc. per competition while preserving Firestore match IDs.
+- Chronologically ordered fixtures (date and kickoff time); existing week assignments retained.
+- Admin master registered-player dropdown loaded from existing competition documents; duplicate prevention.
+- Team names in standings navigate to the Teams tab; Instagram icon only links to the league profile.
+- PWA cache and version updated.
+
+Note: This is a non-destructive frontend update. Existing Firestore data is not migrated. Secure signed Cloudinary uploads, full team/competition profile routing, and comprehensive security audit are not included in this release.
+
 # v1.1.4 — Current Competition Home Default
 
 - Fresh website/app opens and reloads now select the competition marked **Current** in `league/config`.
@@ -61,3 +73,9 @@
 - Existing Season 1 data remains in `league/current` and is not migrated or overwritten.
 - Firestore rules remain unchanged.
 - PWA/app version updated to 1.1.1 and cache updated to `issl-v1.1.1`.
+
+
+## v1.2 — Admin fixture ordering
+- League Control and Match Events dropdowns show consistent Match #, Week #, date/time and teams, sorted by kickoff date/time.
+- Weeks displayed based on distinct chronological match dates; underlying historical week fields and match IDs are preserved.
+- Editing a fixture schedule no longer resets existing scores or match status.

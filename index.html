@@ -536,118 +536,6 @@
     .potm-recommendation-main small{display:block;margin-top:3px}
     .potm-recommendation-actions{flex:0 0 auto}
     @media(max-width:600px){.potm-recommendation-row{align-items:flex-start;flex-direction:column}.potm-recommendation-actions,.potm-recommendation-actions .btn{width:100%}}
-
-    /* v1.2: compact match awards, cleaner admin roster and social icon */
-    .compact-potm{display:block;max-width:100%;font-size:11px;line-height:1.35;color:#9a6a00;background:#fff5cc;border:1px solid #efd37c;border-radius:7px;padding:3px 6px;margin:4px auto 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .match-number{display:block;font-size:10px;font-weight:800;color:#2563eb;margin-bottom:3px}
-    .registered-picker{display:flex;align-items:end;gap:10px;flex-wrap:wrap;background:rgba(49,118,217,.07);border:1px solid var(--border);padding:12px;border-radius:12px;margin-bottom:12px}
-    .registered-picker label{flex:1;min-width:220px}.registered-picker small{flex-basis:100%;color:var(--muted)}
-    .team-name-link{cursor:pointer;color:#2373d5;text-decoration:underline;text-decoration-color:transparent}.team-name-link:hover{text-decoration-color:currentColor}
-    .instagram-follow{display:flex;justify-content:center;align-items:center;gap:12px;margin:20px auto 0;font-weight:700;color:var(--text)}
-    .instagram-follow a{display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:14px;background:linear-gradient(35deg,#ffba32,#e1306c,#833ab4);color:white;transition:transform .15s}
-    .instagram-follow a:hover{transform:translateY(-2px)}
-    #nextFixture{touch-action:pan-y}
-    @media(max-width:600px){.compact-potm{font-size:10px}.registered-picker label{min-width:100%}}
-  
-/* v1.3 visual refresh: navy masthead, light content surfaces, clear interactive links */
-body{background:#edf2f8!important;color:#172b45!important}
-.app{background:transparent}
-header,.site-header,.primary-nav{background:#081b34!important;color:#fff!important}
-main section .card,.competition-detail-panel,.competition-item,.match,.quick-link{background:#fff!important;color:#172b45!important;border:1px solid #dce5f0!important;box-shadow:0 4px 18px rgba(12,39,72,.055);border-radius:13px}
-main section .card h2,main section .card h3,main section .card h4{color:#0b294d}
-.competition-item:hover,.competition-item.active{background:#eaf3ff!important;box-shadow:inset 4px 0 #2774ca!important}
-.competition-group-title,.context-page-title{color:#153a67!important}
-.player-name-link{border:0;background:transparent;color:#1764b4;font:inherit;font-weight:700;padding:2px 3px;cursor:pointer;text-decoration:underline;text-decoration-color:#9cc5ef;text-underline-offset:3px}
-.player-name-link:hover,.player-name-link:focus-visible{color:#0b3b77;background:#e9f3ff;border-radius:4px}
-.fixture-details{background:#f4f8fd;border-top:2px solid #cbdff4;border-radius:0 0 12px 12px}
-.competition-detail-content{margin-top:16px;scroll-margin-top:30px}
-.competition-detail-top{padding:22px 24px;background:linear-gradient(115deg,#09294e,#1b5a98);color:#fff;border-radius:15px 15px 0 0}
-.competition-detail-top h3{color:#fff;margin:0 0 8px;font-size:21px}.competition-detail-top p{margin:0 0 15px;color:#dbeaff}
-.competition-detail-stats{display:flex;flex-wrap:wrap;gap:9px}.competition-detail-stats span{padding:8px 13px;background:#ffffff20;border:1px solid #ffffff33;border-radius:9px}.competition-detail-stats strong{font-size:19px}
-.competition-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding:16px;background:#e6eef8;border-radius:0 0 15px 15px}
-.competition-detail-panel{padding:16px;min-width:0}.competition-detail-panel h4{margin:0 0 12px;color:#0b294d}.competition-mini-table>div{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #e1e9f3}
-.competition-fixture-mini{border-bottom:1px solid #e1e9f3;padding:8px 0}.competition-fixture-mini small{color:#61758f}.competition-fixture-mini div{margin-top:4px;font-size:12px}
-.competition-team-link{display:flex;align-items:center;gap:10px;width:100%;padding:9px 5px;background:none;border:0;border-bottom:1px solid #e1e9f3;text-align:left;color:#1764b4;font-weight:700;cursor:pointer}.competition-team-link .mini-team-logo{width:28px;height:28px;object-fit:contain}
-.competition-detail-panel>.btn{margin-top:14px}
-@media(max-width:850px){.competition-detail-grid{grid-template-columns:1fr}.competition-detail-top{padding:17px}.competition-detail-stats span{flex:1 1 40%}}
-
-/* v1.3 approved high-contrast light theme correction */
-:root{--bg:#f2f6fb;--card:#fff;--text:#142942;--muted:#52667f;--sky:#e9f2fd;--border:#cbd8e7;--navy:#09294e;--blue:#1764b4}
-body{background:#f2f6fb!important;color:#142942!important}
-main section .card,main section .match,main section .competition-item,main section .competition-detail-panel,main section .quick-link{background:#fff!important;color:#142942!important;border-color:#cbd8e7!important}
-main section .card h2,main section .card h3,main section .card h4,main section .match h4{color:#09294e!important}
-main section .muted,main section .fixture-details-hint,main section .team-scorers-empty,main section .quick-link span span{color:#52667f!important}
-main section table,main section td,main section th,main section .player-row,main section .scorer-row,main section .team-scorers{color:#142942!important}
-main section th{color:#405a78!important;background:#edf3fa}
-main section .fixture-details,main section .team-head,main section .squad,main section .team-sheet-box,main section .timeline,main section .live-scorers,main section .team-manager-player{background:#f4f8fd!important;color:#142942!important;border-color:#d0ddec!important}
-main section .badge{background:#e8f2ff!important;color:#124c8b!important}
-main section label{color:#344e6c!important}
-main section input,main section select,main section textarea{background:#fff!important;color:#142942!important;border:1px solid #a9bfd7!important}
-main section .quick-link strong,main section .quick-link .qicon{color:#0b3766!important}
-main section .btn{color:#fff!important}
-main section .btn.secondary{background:#245b91!important}
-main section .player-name-link,main section .competition-team-link,main section .text-link{color:#145dab!important}
-main section .fixture-clickable:hover{background:#eaf3ff!important}
-main section .live-panel,main section .competition-detail-top{color:#fff!important}
-main section .live-panel h2,main section .live-panel h3,main section .live-panel .live-score,main section .live-panel .live-team,main section .competition-detail-top h3{color:#fff!important}
-.instagram-follow{display:flex;flex-direction:column;gap:9px;justify-content:center;align-items:center;margin:22px auto 12px;padding:19px;background:#e8f0f9;border-radius:14px;color:#09294e!important;max-width:100%;font-size:19px}
-.instagram-follow a{display:inline-flex!important;align-items:center;justify-content:center;width:54px;height:54px;background:linear-gradient(35deg,#ffba32,#e1306c,#833ab4);color:#fff!important;border-radius:14px}
-#gallery .instagram-follow{margin-top:20px}
-@media(max-width:700px){.instagram-follow{margin:16px 0 12px;padding:16px}}
-
-
-/* v1.3 approved visual design — global contrast and homepage arrangement */
-:root{--text:#071b36;--muted:#405570;--navy:#06274e;--border:#b8cbe0;--bg:#f3f7fc}
-body,.app{background:#f3f7fc!important;color:#071b36!important}
-.app{max-width:1280px!important}
-header{padding:12px 22px!important;background:#061d3d!important}
-header .brand-copy h1,header .brand-copy p,header .header-actions button{color:#fff!important}
-.primary-nav{position:relative!important;top:auto!important;background:#061d3d!important;border:0!important;display:flex!important;justify-content:center!important}
-.primary-nav button{color:#fff!important;font-weight:800!important;opacity:1!important}
-.primary-nav button.active{background:#c90024!important;color:#fff!important;border-radius:8px!important;border:0!important}
-.competition-context-wrap{background:#fff!important;margin:0!important;padding:8px 18px!important}
-.hero{display:none!important}
-.visual-banner{position:relative;display:flex;align-items:center;justify-content:center;gap:32px;min-height:190px;overflow:hidden;padding:22px;background:linear-gradient(180deg,#8fc9f5 0%,#dff0ff 75%,#f5f9ff 100%);border-bottom:3px solid #cadbec}
-.visual-banner:before,.visual-banner:after{content:"";position:absolute;bottom:-8px;width:55%;height:115px;background:#d5e6f4;clip-path:polygon(0 100%,20% 45%,30% 65%,49% 0,68% 65%,79% 30%,100% 100%)}
-.visual-banner:before{left:-8%;background:#bdd5e9}.visual-banner:after{right:-12%;background:#a8c9e3;opacity:.7}
-.visual-banner img,.visual-banner .banner-title{position:relative;z-index:1}
-.visual-banner img{width:148px;height:148px;object-fit:contain;filter:drop-shadow(0 3px 5px #3456)}
-.banner-title{display:flex;flex-direction:column;color:#06254a;font-weight:1000;line-height:1.05;letter-spacing:.02em;text-shadow:0 1px #fff}
-.banner-title strong,.banner-title b{font-size:clamp(25px,4.4vw,58px)}.banner-title b{color:#b50024}.banner-title span{margin-top:12px;font-size:clamp(10px,1.2vw,16px);letter-spacing:.3em}
-.home-competition-shortcuts{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;padding:0 20px;margin:0 auto 14px}
-.home-competition-shortcuts button{border:1px solid #b9cbe0;background:#fff;color:#081d3b;padding:15px 6px;font-weight:900;font-size:15px;cursor:pointer;min-height:60px}
-.home-competition-shortcuts button:hover{background:#e9f2ff}
-main{padding:8px 22px 90px!important}
-#home .home-no-live{display:none!important}
-#home .home-dashboard{display:grid!important;grid-template-columns:1fr 1.15fr!important;gap:18px!important}
-#home .home-dashboard>.card{min-width:0;min-height:210px!important;border:1px solid #b8cbe0!important;background:#fff!important;color:#071b36!important;padding:0 0 12px!important;overflow:hidden;border-radius:12px!important;box-shadow:0 3px 12px #173f6b1c!important}
-#home .home-dashboard>.card:nth-child(1){order:1}
-#home .home-dashboard>.card:nth-child(4){order:2}
-#home .home-dashboard>.card:nth-child(2){order:3}
-#home .home-dashboard>.card:nth-child(3){order:4}
-#home .home-card-title{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;background:#06274e!important;color:#fff!important;margin:0 0 10px!important;padding:10px 16px!important;min-height:43px}
-#home .home-card-title h3,#home .home-card-title h3 *{color:#fff!important;font-size:19px!important;font-weight:900!important;margin:0!important}
-#home .home-card-title .text-link{color:#fff!important;font-size:13px!important;font-weight:800!important}
-#home .home-dashboard>.card>:not(.home-card-title){margin-left:12px;margin-right:12px}
-#home .home-dashboard table th{background:#e9f1fa!important;color:#102d50!important;font-weight:900!important}
-#home .home-dashboard table td,#home .home-dashboard table td *,#home .home-dashboard .scorer-row,#home .home-dashboard .scorer-row *{color:#071b36!important}
-#home .home-dashboard .player-name-link{color:#004cb3!important;text-decoration:underline!important}
-#home .home-dashboard .score,#home .home-dashboard .goal-total{color:#0b2a53!important}
-#home .home-dashboard .muted{color:#405570!important}
-#home .home-gallery-preview{margin-top:20px!important;padding:0 0 12px!important;overflow:hidden;background:#fff!important;border:1px solid #b8cbe0!important}
-#home .home-gallery-thumbnails{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:0 15px}
-#home .home-gallery-thumbnails img{width:100%;height:145px;object-fit:contain;border-radius:10px;background:#eaf0f8;border:1px solid #c9d7e7}
-#home .instagram-follow{margin:20px 0 12px!important;background:#e7f0fa!important;min-height:118px;color:#061d3d!important}
-#home .instagram-follow strong{font-size:23px!important;color:#061d3d!important}
-main section:not(.live-panel) .card:not(.live-panel),main section .fixture-details,main section .competition-item,main section .competition-detail-panel{color:#071b36!important}
-main section .muted,main section small,main section p{color:#405570}
-main section .live-panel p,main section .competition-detail-top p{color:#e6f2ff!important}
-main section .btn.secondary{color:#fff!important}
-main section .text-link,main section .player-name-link,main section .competition-team-link{color:#0056ae!important}
-main section .home-card-title .text-link{color:#fff!important}
-footer{background:#061d3d!important;color:#fff!important}
-@media(max-width:700px){.visual-banner{gap:12px;min-height:120px;padding:12px}.visual-banner img{width:75px;height:75px}.banner-title strong,.banner-title b{font-size:clamp(16px,5vw,28px)}.banner-title span{font-size:8px;letter-spacing:.1em}.home-competition-shortcuts{display:flex;overflow-x:auto;padding:0 8px}.home-competition-shortcuts button{flex:0 0 135px;font-size:12px;min-height:54px}#home .home-dashboard{grid-template-columns:1fr!important}#home .home-gallery-thumbnails{grid-template-columns:repeat(2,1fr)}#home .home-gallery-thumbnails img{height:110px}main{padding:8px 10px 92px!important}.primary-nav{position:fixed!important;bottom:0!important;z-index:70!important}}
-
 </style>
 </head>
 <body>
@@ -685,8 +573,6 @@ footer{background:#061d3d!important;color:#fff!important}
     <button data-tab="admin" id="adminTab" class="admin-hidden">Admin</button>
   </nav>
 
-  <div class="visual-banner" aria-label="Intra Squad Sunday League banner"><div class="banner-mountains"></div><img src="league-logo.png" alt="League crest"><div class="banner-title"><strong>INTRA SQUAD</strong><b>SUNDAY LEAGUE</b><span>SAN FRANCISCO BAY AREA</span></div></div>
-  <div class="home-competition-shortcuts" id="homeCompetitionShortcuts"><button type="button" data-comp-shortcut="0">🏆 Season 1</button><button type="button" data-comp-shortcut="1">🏆 Season 2</button><button type="button" data-comp-shortcut="2">🏆 Dashain Cup</button><button type="button" data-comp-shortcut="3">🏆 New Year Cup</button><button type="button" data-comp-shortcut="4">🏆 Super Cup</button></div>
   <main>
     <section id="home" class="active">
       <div id="liveMatchPanel" class="card live-panel">
@@ -726,15 +612,15 @@ footer{background:#061d3d!important;color:#fff!important}
       </div>
       <div class="home-dashboard">
         <div class="card">
-          <div class="home-card-title"><h3><span class="home-card-icon"><svg class="neutral-calendar" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"/></svg></span> Next Match</h3></div>
+          <div class="home-card-title"><h3><span class="home-card-icon"><svg class="neutral-calendar" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"/></svg></span> Upcoming Fixtures</h3></div>
           <div id="nextFixture" class="upcoming-fixtures">Upcoming fixtures loading…</div>
         </div>
         <div class="card home-standings">
-          <div class="home-card-title"><h3><span class="home-card-icon">📊</span> Standings – Season 2</h3><button class="text-link" type="button" data-open-tab="standings">Full Table</button></div>
+          <div class="home-card-title"><h3><span class="home-card-icon">📊</span> Standings</h3><button class="text-link" type="button" data-open-tab="standings">Full Table</button></div>
           <div class="standings-scroll"><table><thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr></thead><tbody id="homeStandingsBody"></tbody></table></div>
         </div>
         <div class="card">
-          <div class="home-card-title"><h3><span class="home-card-icon">🏆</span> Top Scorers – Season 2</h3></div>
+          <div class="home-card-title"><h3><span class="home-card-icon">🏆</span> Top Scorers</h3></div>
           <div id="topScorers"></div>
         </div>
         <div class="card">
@@ -742,14 +628,18 @@ footer{background:#061d3d!important;color:#fff!important}
           <div id="latestResult" class="muted">No completed matches yet.</div>
         </div>
       </div>
-      <div class="home-gallery-preview card"><div class="home-card-title"><h3>▧ Gallery</h3><button class="text-link" type="button" data-open-tab="gallery">View Gallery →</button></div><div class="home-gallery-thumbnails"><img src="Momo Strikers Jersey.png" alt="MoMo Strikers jersey"><img src="Jhyap Warriors Jersey.png" alt="Jhyap Warriors jersey"><img src="No Stamina Hustlers Jersey.png" alt="No Stamina Hustlers jersey"><img src="league-logo.png" alt="League crest"></div></div>
-      <div class="instagram-follow"><strong>Follow Us</strong><a href="https://www.instagram.com/hamro_sundayleague/" target="_blank" rel="noopener noreferrer" aria-label="Visit our Instagram profile" title="Instagram"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="18" cy="6" r="1" fill="currentColor" stroke="none"/></svg></a></div>
+      <div class="quick-links">
+        <button class="quick-link" type="button" onclick="document.querySelector('[data-tab=fixtures]').click()"><span class="qicon"><svg class="neutral-calendar" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"/></svg></span><span><strong>Fixtures</strong><span>Schedule, live games & results</span></span></button>
+        <button class="quick-link" type="button" onclick="document.querySelector('[data-tab=teams]').click()"><span class="qicon">🛡️</span><span><strong>Teams</strong><span>Squads, jerseys & player profiles</span></span></button>
+        <button class="quick-link" type="button" data-open-tab="top-scorers"><span class="qicon">📈</span><span><strong>Stats</strong><span>Goals, assists, cards & POTM</span></span></button>
+        <button class="quick-link" type="button" data-open-tab="gallery"><span class="qicon">▣</span><span><strong>Gallery</strong><span>Competition photos & videos</span></span></button>
+      </div>
     </section>
 
     <section id="competitions">
       <div class="section-heading"><div><h2>Competitions</h2><div class="muted">Seasons, league competitions and standalone tournaments.</div></div></div>
       <div id="competitionsCatalog" class="competition-catalog"></div>
-      <div id="competitionOverviewCard" class="card competition-overview-card"></div><div id="competitionDetailContent" class="competition-detail-content"></div>
+      <div id="competitionOverviewCard" class="card competition-overview-card"></div>
     </section>
 
     <section id="fixtures">
@@ -831,7 +721,6 @@ footer{background:#061d3d!important;color:#fff!important}
           <label>Match<select id="galleryMatchFilter"><option value="">All matches</option></select></label>
         </div>
         <div id="galleryContent"></div>
-        <div class="instagram-follow"><strong>Follow Us</strong><a href="https://www.instagram.com/hamro_sundayleague/" target="_blank" rel="noopener noreferrer" aria-label="Visit our Instagram profile" title="Instagram"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="18" cy="6" r="1" fill="currentColor" stroke="none"/></svg></a></div>
       </div>
 
       <div id="galleryAdminPanel" class="card gallery-admin-panel admin-hidden">
@@ -1032,7 +921,6 @@ footer{background:#061d3d!important;color:#fff!important}
             <label id="transferTeamLabel" style="display:none">Transfer to<select id="transferPlayerTeam"></select></label>
           </div>
           <div id="addPlayerFields">
-            <div class="registered-picker"><label>Already registered in another competition?<select id="registeredPlayerSelect"><option value="">Choose registered player (optional)</option></select></label><button type="button" id="refreshRegisteredPlayers" class="btn secondary">↻ Load registered players</button><small>Pick a player to fill their details, then Add Player. Existing competition records stay unchanged.</small></div>
             <div class="row">
               <label>Player name<input id="manageNewPlayerName" placeholder="Enter player name"></label>
               <label>Jersey number (optional)<input id="manageNewPlayerNumber" type="number" min="1" max="99" placeholder="Leave blank"></label>
@@ -1057,7 +945,7 @@ footer{background:#061d3d!important;color:#fff!important}
         <form id="fixtureManagementForm" style="margin-top:12px">
           <div class="row">
             <label>Edit fixture<select id="fixtureManageSelect"><option value="NEW">+ New fixture</option></select></label>
-            <label>Original Week / Round<input id="fixtureManageWeek" type="number" min="1" value="1"></label>
+            <label>Week / Round<input id="fixtureManageWeek" type="number" min="1" value="1"></label>
           </div>
           <div class="row">
             <label>Home team<select id="fixtureManageHome"></select></label>
@@ -1076,7 +964,7 @@ footer{background:#061d3d!important;color:#fff!important}
     </section>
   </main>
 
-  <footer>© 2026 Intra Squad Sunday League • Passion. Community. Football. • v1.3</footer>
+  <footer>© 2026 Intra Squad Sunday League • Passion. Community. Football. • v1.1.4</footer>
 </div>
 
 
@@ -1110,7 +998,7 @@ footer{background:#061d3d!important;color:#fff!important}
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script>
-  window.ISSL_APP_VERSION = "1.3";
+  window.ISSL_APP_VERSION = "1.1.4";
   // Keep installed PWAs/phones and desktop browsers on the same deployed release.
   (async()=>{
     try{
@@ -1144,12 +1032,6 @@ footer{background:#061d3d!important;color:#fff!important}
     }catch(e){ console.warn("Version check unavailable",e); }
   })();
 </script>
-<script src="app.js?v=1.3"></script>
-<script>
-  document.querySelectorAll('[data-comp-shortcut]').forEach(button => button.addEventListener('click', () => {
-    const competitionTab=document.querySelector('[data-tab="competitions"]');
-    if(competitionTab) competitionTab.click();
-  }));
-</script>
+<script src="app.js?v=1.1.4"></script>
 </body>
 </html>

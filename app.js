@@ -1,4 +1,4 @@
-const APP_VERSION = "1.2.0";
+const APP_VERSION = "1.1.4";
 const firebaseConfig = {
   apiKey: "AIzaSyAh6B75N8AK1TmIXUz1thxzoKxToeztf08",
   authDomain: "intra-squad-sunday-league.firebaseapp.com",
@@ -511,14 +511,6 @@ function renderCompetitionUI(){
   if(catalog)catalog.innerHTML=groups.map(group=>`<div class="competition-group"><div class="competition-group-title">${group}</div>${competitions.filter(c=>(c.group||"Other Competitions")===group).map(c=>`<div class="competition-item ${c.id===selectedCompetitionId?"active":""}" data-competition-id="${c.id}"><div class="competition-icon">${c.icon||"🏆"}</div><div><strong>${c.name}</strong><small>${c.startDate||"TBD"}${c.endDate&&c.endDate!==c.startDate?` – ${c.endDate}`:""} • ${c.format||"Competition"}</small></div><span class="status-chip ${competitionStatus(c)}">${c.id===currentCompetitionId?"Current":competitionStatus(c)}</span></div>`).join("")}</div>`).join("");
   const overview=document.querySelector("#competitionOverviewCard");
   if(overview && current)overview.innerHTML=`<div class="competition-overview-hero"><div><div class="muted">Selected Competition</div><h2>${current.icon||"🏆"} ${current.fullName||current.name}</h2><div class="muted">${current.description||""}</div></div><span class="status-chip ${competitionStatus(current)}">${current.id===currentCompetitionId?"Current":competitionStatus(current)}</span></div><div class="competition-format"><strong>Format: ${current.format||"Competition"}</strong>${current.type==="league_final"?`<div class="qualification-flow"><span>League Stage</span><b>→</b><span>Top 2</span><b>→</b><span>Final</span></div><div class="muted" style="margin-top:8px">Positions 1 and 2 qualify for the Final. Final team names resolve automatically when the league stage is complete.</div>`:""}</div><button class="btn" type="button" data-view-selected-competition style="margin-top:12px">View ${current.name}</button>`;
-  const detail=document.querySelector("#competitionDetailContent");
-  if(detail&&current){
-    const rows=standings();
-    const all=sortedFixtures();
-    const played=all.filter(f=>normalizedStatus(f)==="finished");
-    const future=all.filter(f=>normalizedStatus(f)!=="finished");
-    detail.innerHTML=`<div class="competition-detail-top"><h3>${escapeHtml(current.fullName||current.name)} — Competition Overview</h3><p>${escapeHtml(current.description||"Explore the competition's teams, table and matches.")}</p><div class="competition-detail-stats"><span><strong>${data.teams.length}</strong> Teams</span><span><strong>${all.length}</strong> Fixtures</span><span><strong>${played.length}</strong> Completed</span><span><strong>${future.length}</strong> Remaining</span></div></div><div class="competition-detail-grid"><div class="competition-detail-panel"><h4>Standings</h4>${rows.length?`<div class="competition-mini-table">${rows.map((r,i)=>`<div><span>${i+1}. ${escapeHtml(r.team.name)}</span><strong>${r.pts} pts</strong></div>`).join("")}</div>`:'<p>No standings yet.</p>'}<button class="btn" data-open-tab="standings" type="button">Full Standings</button></div><div class="competition-detail-panel"><h4>Fixtures & Results</h4>${all.length?all.slice(0,8).map(f=>`<div class="competition-fixture-mini"><small>${matchLabel(f)} · Week ${displayWeek(f)} · ${escapeHtml(f.date||"TBA")}</small><div>${escapeHtml(teamName(f.home))} <strong>${hasScore(f)?`${f.homeScore}–${f.awayScore}`:"vs"}</strong> ${escapeHtml(teamName(f.away))}</div></div>`).join(""):'<p>No fixtures scheduled.</p>'}<button class="btn" data-open-tab="fixtures" type="button">All Fixtures</button></div><div class="competition-detail-panel"><h4>Participating Teams</h4>${data.teams.map(t=>`<button type="button" class="competition-team-link" data-open-team="${escapeHtml(t.id)}">${logoHtml(t.id)} ${escapeHtml(t.name)} →</button>`).join("")||'<p>No teams registered.</p>'}<button class="btn" data-open-tab="teams" type="button">Teams & Players</button></div></div>`;
-  }
   const list=document.querySelector("#competitionSwitcherList");
   if(list)list.innerHTML=competitions.map(c=>`<button class="competition-switch-option ${c.id===selectedCompetitionId?"selected":""}" type="button" data-switch-competition="${c.id}"><span>${c.icon||"🏆"}</span><span><strong>${c.parentSeason?`${c.parentSeason} — `:""}${c.name}</strong><small>${c.format||""}</small></span><span class="status-chip ${competitionStatus(c)}">${c.id===currentCompetitionId?"Current":competitionStatus(c)}</span></button>`).join("");
   const adminSelect=document.querySelector("#adminCompetitionSelect");
@@ -787,7 +779,6 @@ function fixtureLineups(f){
   };
 }
 function playerName(id){return data.players.find(p=>p.id===id)?.name || "Unknown player";}
-function playerLink(id){const p=data.players.find(x=>String(x.id)===String(id));return p?`<button type="button" class="player-name-link" data-player-profile="${escapeHtml(String(p.id))}" aria-label="Open ${escapeHtml(p.name)} profile">${escapeHtml(p.name)}</button>`:`<span>${escapeHtml(playerName(id))}</span>`;}
 function playerCaptainForFixture(playerId,teamId){
   const p=data.players.find(x=>x.id===playerId);
   return p?.captain && p?.teamId===teamId;
@@ -799,19 +790,19 @@ function lineupHtml(f,side){
   const ids=fixtureLineups(f)[side];
   const teamId=actualFixtureTeamId(f,side);
   if(!ids.length)return `<div class="muted">Lineup not submitted.</div>`;
-  return `<ul class="lineup-list">${ids.map(id=>`<li>${playerLink(id)}${playerCaptainForFixture(id,teamId)?" (C)":""}</li>`).join("")}</ul>`;
+  return `<ul class="lineup-list">${ids.map(id=>`<li>${playerName(id)}${playerCaptainForFixture(id,teamId)?" (C)":""}</li>`).join("")}</ul>`;
 }
 function substitutionsHtml(f,teamId){
   const subs=substitutionEvents(f.id,teamId);
   if(!subs.length)return `<div class="muted">No substitutions.</div>`;
-  return `<div class="sub-list">${subs.map(e=>`<div class="sub-line"><strong>${Number(e.minute||0)}'</strong> <span class="sub-out">⬇ ${playerLink(e.playerOutId)}</span> &nbsp; <span class="sub-in">⬆ ${playerLink(e.playerInId)}</span></div>`).join("")}</div>`;
+  return `<div class="sub-list">${subs.map(e=>`<div class="sub-line"><strong>${Number(e.minute||0)}'</strong> <span class="sub-out">⬇ ${playerName(e.playerOutId)}</span> &nbsp; <span class="sub-in">⬆ ${playerName(e.playerInId)}</span></div>`).join("")}</div>`;
 }
 function fixtureDetailsHtml(f){
   const finished=normalizedStatus(f)==="finished" && hasScore(f);
   const resultSummary=finished?`<div class="completed-match-summary">
     <div class="result-with-scorers">
       <div class="result-team result-home"><strong>${teamName(f.home)}</strong>${completedTeamMatchDetailsHtml(f,f.home,"left")}</div>
-      <div class="result-center"><div class="result-score">${Number(f.homeScore)}–${Number(f.awayScore)}</div><span class="badge">FT</span>${compactPotm(f)}<div class="muted">${matchLabel(f)} • Week ${displayWeek(f)}${f.date?` • ${f.date}`:""}</div></div>
+      <div class="result-center"><div class="result-score">${Number(f.homeScore)}–${Number(f.awayScore)}</div><span class="badge">Full Time</span><div class="muted">Week ${f.week}${f.date?` • ${f.date}`:""}</div></div>
       <div class="result-team result-away"><strong>${teamName(f.away)}</strong>${completedTeamMatchDetailsHtml(f,f.away,"right")}</div>
     </div>
   </div>`:"";
@@ -884,7 +875,7 @@ function renderGallery(){
   const content=document.querySelector("#galleryContent");
   if(!filter||!content)return;
   const previous=filter.value;
-  filter.innerHTML=`<option value="">All Photos & Videos</option><option value="GENERAL">General Competition Gallery</option>${data.fixtures.map(f=>`<option value="${f.id}">Week ${displayWeek(f)} • ${teamName(f.home)} vs ${teamName(f.away)}</option>`).join("")}`;
+  filter.innerHTML=`<option value="">All Photos & Videos</option><option value="GENERAL">General Competition Gallery</option>${data.fixtures.map(f=>`<option value="${f.id}">Week ${f.week} • ${teamName(f.home)} vs ${teamName(f.away)}</option>`).join("")}`;
   if(previous==="GENERAL" || data.fixtures.some(f=>f.id===previous))filter.value=previous;
   const selected=filter.value;
   const sections=[];
@@ -902,7 +893,7 @@ function renderGallery(){
       if(!items.length)return;
       sections.push(`<div class="gallery-match-group">
         <div class="gallery-match-head">
-          <div><strong>${teamName(f.home)} vs ${teamName(f.away)}</strong><div class="muted">Week ${displayWeek(f)}${f.date?` • ${f.date}`:""} • ${normalizedStatus(f)==="finished"?"Full Time":normalizedStatus(f)==="live"?"LIVE":normalizedStatus(f)==="halftime"?"Half Time":"Match Gallery"}</div></div>
+          <div><strong>${teamName(f.home)} vs ${teamName(f.away)}</strong><div class="muted">Week ${f.week}${f.date?` • ${f.date}`:""} • ${normalizedStatus(f)==="finished"?"Full Time":normalizedStatus(f)==="live"?"LIVE":normalizedStatus(f)==="halftime"?"Half Time":"Match Gallery"}</div></div>
           <span class="badge">${items.length} item${items.length===1?"":"s"}</span>
         </div>
         <div class="gallery-grid">${items.map(item=>mediaItemHtml(item,{admin:isAdmin})).join("")}</div>
@@ -918,7 +909,7 @@ function renderAdminGallery(){
   if(panel)panel.classList.toggle("admin-hidden",!isAdmin);
   if(!matchSel||!list)return;
   const previous=matchSel.value;
-  matchSel.innerHTML=`<option value="GENERAL">📸 General Competition Gallery (all photos)</option>${data.fixtures.map(f=>`<option value="${f.id}">Week ${displayWeek(f)} • ${teamName(f.home)} vs ${teamName(f.away)}</option>`).join("")}`;
+  matchSel.innerHTML=`<option value="GENERAL">📸 General Competition Gallery (all photos)</option>${data.fixtures.map(f=>`<option value="${f.id}">Week ${f.week} • ${teamName(f.home)} vs ${teamName(f.away)}</option>`).join("")}`;
   if(previous==="GENERAL" || data.fixtures.some(f=>f.id===previous))matchSel.value=previous;
   const matchId=matchSel.value || "GENERAL";
   const items=matchId==="GENERAL"?mediaForGeneral():mediaForMatch(matchId);
@@ -1055,28 +1046,6 @@ function renderSubstitutionOptions(){
 }
 
 
-function escapeHtml(value){return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-// Presentation-only fixture order and numbers: never rewrite Firestore IDs or recorded events.
-function fixtureChronologicalTime(f){
-  const day=fixtureDateObject(f.date)?.getTime();
-  if(!Number.isFinite(day))return Number.MAX_SAFE_INTEGER;
-  const input=toTimeInputValue(f.time||"");
-  const m=/^(\d{2}):(\d{2})$/.exec(input);
-  return day+(m?(Number(m[1])*60+Number(m[2]))*60000:0);
-}
-function sortedFixtures(){return [...(data.fixtures||[])].sort((a,b)=>
-  fixtureChronologicalTime(a)-fixtureChronologicalTime(b) || String(a.id).localeCompare(String(b.id))
-);}
-// A week is a distinct calendar date in chronological order. Display only: do not rewrite historical data.
-function displayWeek(f){
-  const days=[...new Set(sortedFixtures().filter(x=>!isFinalFixture(x)).map(x=>toDateInputValue(x.date)).filter(Boolean))];
-  const key=toDateInputValue(f?.date);
-  return key&&days.includes(key)?days.indexOf(key)+1:Number(f?.week||1);
-}
-function matchLabel(f){const index=sortedFixtures().findIndex(x=>String(x.id)===String(f?.id));return `Match ${index+1}`;}
-function fixtureAdminLabel(f){return `${matchLabel(f)} • ${isFinalFixture(f)?"Final":`Week ${displayWeek(f)}`} • ${f.date||"Date TBA"}${f.time?` ${f.time}`:""} • ${teamName(f.home)} vs ${teamName(f.away)}`;}
-function potmForFixture(f){return (data.events||[]).find(e=>e.matchId===f.id&&e.type==="Player of the Match");}
-function compactPotm(f){const e=potmForFixture(f);if(!e)return "";const p=data.players.find(p=>String(p.id)===String(e.playerId));return `<span class="compact-potm">🏆 POTM: ${p?playerLink(p.id):"Awarded player"}</span>`;}
 let upcomingFixtureSlideIndex=0;
 let upcomingFixtureTimer=null;
 function renderUpcomingFixtureSlide(){
@@ -1093,7 +1062,7 @@ function renderUpcomingFixtureSlide(){
       <div class="upcoming-vs">VS</div>
       <div><strong>${teamName(f.away)}</strong>${logoHtml(f.away)}</div>
     </div>
-    <div class="upcoming-meta">${matchLabel(f)} • Week ${displayWeek(f)} • ${f.date||""}${f.time?` • ${f.time}`:""}${f.venue?`<br>${f.venue}`:""}</div>
+    <div class="upcoming-meta">Week ${f.week} • ${f.date||""}${f.time?` • ${f.time}`:""}${f.venue?`<br>${f.venue}`:""}</div>
     <div class="upcoming-controls">
       <button type="button" data-upcoming-prev aria-label="Previous fixture">‹</button>
       <div class="upcoming-dots">${upcoming.map((_,i)=>`<span class="${i===upcomingFixtureSlideIndex?"active":""}"></span>`).join("")}</div>
@@ -1135,16 +1104,16 @@ function render(){
   document.querySelector("#latestResult").innerHTML=completedResults.length?
     `<div class="latest-results-list">${completedResults.map(f=>`
       <div class="latest-result-item">
-        <div class="latest-result-meta">${matchLabel(f)} • Week ${displayWeek(f)}${f.date?` • ${f.date}`:""}${f.time?` • ${f.time}`:""}</div>
+        <div class="latest-result-meta">Week ${f.week}${f.date?` • ${f.date}`:""}${f.time?` • ${f.time}`:""}</div>
         <div class="result-with-scorers">
           <div class="result-team result-home"><strong>${teamName(f.home)}</strong>${teamScorersHtml(f,f.home,"left")}</div>
-          <div class="result-center"><div class="result-score">${Number(f.homeScore)}–${Number(f.awayScore)}</div><span class="badge">FT</span></div>
+          <div class="result-center"><div class="result-score">${Number(f.homeScore)}–${Number(f.awayScore)}</div><span class="badge">Full Time</span></div>
           <div class="result-team result-away"><strong>${teamName(f.away)}</strong>${teamScorersHtml(f,f.away,"right")}</div>
         </div>
       </div>`).join("")}</div>`:
     `No completed matches yet.`;
 
-  const upcoming=sortedFixtures().filter(f=>!["finished","live","paused","halftime"].includes(normalizedStatus(f)));
+  const upcoming=data.fixtures.filter(f=>!["finished","live","paused","halftime"].includes(normalizedStatus(f)));
   window.ISSL_UPCOMING_FIXTURES=upcoming;
   renderUpcomingFixtureSlide();
 
@@ -1165,18 +1134,18 @@ function render(){
   const potm=[...scorers].filter(p=>p.potm>0).sort((a,b)=>b.potm-a.potm||b.goals-a.goals);
   const potmEl=document.querySelector("#potmLeaders");if(potmEl)potmEl.innerHTML=potm.length?potm.map((p,i)=>`<div class="leader-row profile-clickable" data-player-profile="${p.id}"><strong>${i+1}</strong><span><strong>${p.name}</strong><small class="muted">${teamName(p.teamId)}</small></span><strong>${p.potm}</strong></div>`).join(""):`<div class="muted">No Player of the Match awards recorded yet.</div>`;
 
-  document.querySelector("#fixtureList").innerHTML=sortedFixtures().map(f=>{
+  document.querySelector("#fixtureList").innerHTML=data.fixtures.map(f=>{
     const status=normalizedStatus(f);
     const matchHasScore=hasScore(f);
     const label=status==="live"?"🔴 LIVE":status==="halftime"?"Half Time":status==="paused"?"Paused":status==="finished"?"Full Time":"Scheduled";
-    const canOpen=true;
+    const canOpen=["live","paused","halftime","finished"].includes(status);
     const finalAutoNote=isFinalFixture(f)
       ? `<div class="final-auto-note">${leagueStageComplete()
           ? `🏆 Final: ${teamName("FINAL1")} vs ${teamName("FINAL2")}`
           : "🏆 Final: 1st Place vs 2nd Place • teams fill automatically after league completion"}</div>`
       : "";
-    return `<div class="match ${canOpen?"fixture-clickable":""}" ${canOpen?`data-fixture-id="${f.id}"`:""}><div>${logoHtml(f.home)}<strong>${teamName(f.home)}</strong><div class="muted">Week ${displayWeek(f)}</div></div>
-      <div class="score"><small class="match-number">${matchLabel(f)}</small>${matchHasScore?`${Number(f.homeScore)}–${Number(f.awayScore)}`:"VS"}<div class="badge">${label}</div>${canOpen?`<div class="fixture-details-hint">${expandedFixtureId===f.id?"Hide":"View"} match details</div>`:""}</div>
+    return `<div class="match ${canOpen?"fixture-clickable":""}" ${canOpen?`data-fixture-id="${f.id}"`:""}><div>${logoHtml(f.home)}<strong>${teamName(f.home)}</strong><div class="muted">Week ${f.week}</div></div>
+      <div class="score">${matchHasScore?`${Number(f.homeScore)}–${Number(f.awayScore)}`:"VS"}<div class="badge">${label}</div>${canOpen?`<div class="fixture-details-hint">${expandedFixtureId===f.id?"Hide":"View"} match details</div>`:""}</div>
       <div class="team-right"><strong>${teamName(f.away)}</strong>${logoHtml(f.away)}<div class="muted">${f.date||""}${f.time?` • ${f.time}`:""}${f.venue?`<br>${f.venue}`:""}${finalAutoNote}</div></div>
       ${expandedFixtureId===f.id?fixtureDetailsHtml(f):""}</div>`;
   }).join("");
@@ -1186,13 +1155,13 @@ function render(){
   renderAdminGallery();
 
   const selectedComp=competitionById(selectedCompetitionId);
-  document.querySelector("#standingsBody").innerHTML=st.map((x,i)=>`<tr class="${i===0?"rank1 ":i===1?"rank2 ":i===2?"rank3 ":""}${false?"qualification-row":""}">
-    <td>${i+1}</td><td>${logoHtml(x.team.id)}<strong class="team-name-link" data-open-team="${x.team.id}" role="link" tabindex="0">${x.team.name}</strong></td><td>${x.p}</td><td>${x.w}</td><td>${x.d}</td><td>${x.l}</td><td>${x.gf}</td><td>${x.ga}</td><td>${x.gd>0?"+":""}${x.gd}</td><td><strong>${x.pts}</strong></td></tr>`).join("");
+  document.querySelector("#standingsBody").innerHTML=st.map((x,i)=>`<tr class="${i===0?"rank1 ":i===1?"rank2 ":i===2?"rank3 ":""}${selectedComp?.type==="league_final"&&i===1?"qualification-row":""}">
+    <td>${i+1}</td><td>${logoHtml(x.team.id)}<strong>${x.team.name}</strong>${selectedComp?.type==="league_final"&&i<2?` <span class="status-chip current">Final</span>`:""}</td><td>${x.p}</td><td>${x.w}</td><td>${x.d}</td><td>${x.l}</td><td>${x.gf}</td><td>${x.ga}</td><td>${x.gd>0?"+":""}${x.gd}</td><td><strong>${x.pts}</strong></td></tr>`).join("");
 
   const homeStandingsBody=document.querySelector("#homeStandingsBody");
   if(homeStandingsBody){
     const comp=competitionById(selectedCompetitionId);
-    homeStandingsBody.innerHTML=st.map((x,i)=>`<tr class="${false?"qualification-row":""}"><td>${i+1}</td><td>${logoHtml(x.team.id)}<strong class="team-name-link" data-open-team="${x.team.id}" role="link" tabindex="0">${x.team.name}</strong></td><td>${x.p}</td><td>${x.w}</td><td>${x.d}</td><td>${x.l}</td><td>${x.gd>0?"+":""}${x.gd}</td><td><strong>${x.pts}</strong></td></tr>`).join("");
+    homeStandingsBody.innerHTML=st.map((x,i)=>`<tr class="${comp?.type==="league_final"&&i===1?"qualification-row":""}"><td>${i+1}</td><td>${logoHtml(x.team.id)}<strong>${x.team.name}</strong></td><td>${x.p}</td><td>${x.w}</td><td>${x.d}</td><td>${x.l}</td><td>${x.gd>0?"+":""}${x.gd}</td><td><strong>${x.pts}</strong></td></tr>`).join("");
   }
   const homeNoLive=document.querySelector("#homeNoLive");
   if(homeNoLive) homeNoLive.style.display=activeMatch()?"none":"block";
@@ -1201,7 +1170,7 @@ function render(){
     const ps=data.players.filter(p=>p.teamId===t.id && p.active!==false);
     const media=TEAM_MEDIA[t.id] || {};
     const captain=ps.find(p=>p.captain);
-    return `<article class="card team-card" data-team-card="${t.id}" style="--team-color:${t.color}">
+    return `<article class="card team-card" style="--team-color:${t.color}">
       <div class="team-banner"></div>
       <div class="team-head">
         ${media.logo?`<img class="team-logo-img" src="${encodeURI(media.logo)}" alt="${t.name} logo">`:`<div class="logo" style="background:${t.color}">${"⚽"}</div>`}
@@ -1402,7 +1371,7 @@ function teamScorersHtml(f, teamId, align="left"){
   if(!goals.length)return `<div class="team-scorers-empty">No goals</div>`;
   return `<div class="team-scorers ${align}">${goals.map(e=>{
     const p=data.players.find(x=>x.id===e.playerId);
-    return `<div class="team-scorer-line"><span>${playerLink(e.playerId)}${e.type==="Own Goal"?` <span class="og-tag">OG</span>`:""} <strong>${Number(e.minute||0)}'</strong></span></div>`;
+    return `<div class="team-scorer-line"><span>${p?.name||"Unknown player"}${e.type==="Own Goal"?` <span class="og-tag">OG</span>`:""} <strong>${Number(e.minute||0)}'</strong></span></div>`;
   }).join("")}</div>`;
 }
 
@@ -1417,7 +1386,7 @@ function teamCardsHtml(f,teamId){
   return `<div class="team-card-events">${cards.map(e=>{
     const p=data.players.find(x=>x.id===e.playerId);
     const cls=e.type==="Red Card"?"red-card-detail":"yellow-card-detail";
-    return `<div class="team-card-line"><span class="${cls}"></span><span>${playerLink(e.playerId)} <strong>${Number(e.minute||0)}'</strong></span></div>`;
+    return `<div class="team-card-line"><span class="${cls}"></span><span>${p?.name||"Unknown player"} <strong>${Number(e.minute||0)}'</strong></span></div>`;
   }).join("")}</div>`;
 }
 function completedTeamMatchDetailsHtml(f,teamId,align="left"){
@@ -1436,7 +1405,7 @@ function renderLiveMatch(){
   document.querySelector("#liveHomeName").textContent=teamName(f.home);
   document.querySelector("#liveAwayName").textContent=teamName(f.away);
   document.querySelector("#liveScore").textContent=`${Number(f.homeScore||0)}–${Number(f.awayScore||0)}`;
-  document.querySelector("#liveMatchWeek").textContent=`Week ${displayWeek(f)} • ${f.venue||""}`;
+  document.querySelector("#liveMatchWeek").textContent=`Week ${f.week} • ${f.venue||""}`;
   document.querySelector("#liveClock").textContent=formatClock(elapsedSeconds(f));
   const timeline=matchEvents(f.id);
   const goals=timeline.filter(e=>["Goal","Own Goal"].includes(e.type));
@@ -1447,7 +1416,7 @@ function renderLiveMatch(){
     </div>`:`<div class="muted">No goals yet.</div>`;
   document.querySelector("#liveTimeline").innerHTML=timeline.length?timeline.map(e=>{
     const p=data.players.find(x=>x.id===e.playerId);
-    if(e.type==="Substitution")return `<div class="timeline-item"><strong>${e.minute||0}'</strong><span>🔁 Substitution — <span class="sub-out">⬇ ${playerLink(e.playerOutId)}</span> / <span class="sub-in">⬆ ${playerLink(e.playerInId)}</span></span></div>`;
+    if(e.type==="Substitution")return `<div class="timeline-item"><strong>${e.minute||0}'</strong><span>🔁 Substitution — <span class="sub-out">⬇ ${playerName(e.playerOutId)}</span> / <span class="sub-in">⬆ ${playerName(e.playerInId)}</span></span></div>`;
     return `<div class="timeline-item"><strong>${e.minute||0}'</strong><span>${eventIcon(e.type)} ${e.type}${p?` — ${p.name}${e.type==="Own Goal"?` <span class="og-tag">OG</span>`:""}`:""}</span></div>`;
   }).join(""):`<div class="muted">Live match events will appear here.</div>`;
   const liveLineups=document.querySelector("#liveLineupsContent");
@@ -1573,7 +1542,7 @@ function managedEventMatchId(){
   return el?.value || data.fixtures?.[0]?.id || "";
 }
 function eventDisplayText(e){
-  if(e.type==="Substitution")return `${Number(e.minute||0)}' • 🔁 Substitution • ${playerLink(e.playerOutId)} → ${playerLink(e.playerInId)}`;
+  if(e.type==="Substitution")return `${Number(e.minute||0)}' • 🔁 Substitution • ${playerName(e.playerOutId)} → ${playerName(e.playerInId)}`;
   const p=data.players.find(x=>x.id===e.playerId);
   return `${Number(e.minute||0)}' • ${eventIcon(e.type)} ${e.type} • ${p?.name||"Unknown player"}`;
 }
@@ -1655,8 +1624,8 @@ function renderEventManager(){
   list.innerHTML=events.length?events.map(e=>{
     const p=data.players.find(x=>x.id===e.playerId);
     const desc=e.type==="Substitution"
-      ? `<span class="sub-out">⬇ ${playerLink(e.playerOutId)}</span> / <span class="sub-in">⬆ ${playerLink(e.playerInId)}</span> • ${teamName(e.teamId)}`
-      : `${playerLink(e.playerId)}${e.type==="Own Goal"?` <span class="og-tag">OG</span>`:""} • ${teamName(e.teamId||p?.teamId)}`;
+      ? `<span class="sub-out">⬇ ${playerName(e.playerOutId)}</span> / <span class="sub-in">⬆ ${playerName(e.playerInId)}</span> • ${teamName(e.teamId)}`
+      : `${p?.name||"Unknown player"}${e.type==="Own Goal"?` <span class="og-tag">OG</span>`:""} • ${teamName(e.teamId||p?.teamId)}`;
     return `<div class="managed-event">
       <div class="managed-event-minute">${Number(e.minute||0)}'</div>
       <div><div class="managed-event-type">${eventIcon(e.type)} ${e.type}</div><div class="muted">${desc}</div></div>
@@ -1724,36 +1693,6 @@ function selectedManagedPlayer(){
   const id=document.querySelector("#managePlayerSelect")?.value;
   return data.players.find(p=>String(p.id)===String(id));
 }
-let registeredPlayers=[];
-async function loadRegisteredPlayers(){
-  if(!isAdmin)return;
-  const entries=[];
-  for(const c of competitions){
-    try{
-      const snap=await competitionDocRef(c.id).get();
-      const roster=snap.data()?.players||[];
-      for(const player of roster){if(player?.name)entries.push({...player,sourceCompetition:c.name,sourceId:c.id});}
-    }catch(err){console.warn("Could not read registered players for",c.id,err);}
-  }
-  const names=new Set();registeredPlayers=entries.filter(p=>{const k=p.name.trim().toLocaleLowerCase();if(names.has(k))return false;names.add(k);return true;}).sort((a,b)=>a.name.localeCompare(b.name));
-  renderRegisteredPlayerOptions();
-}
-function renderRegisteredPlayerOptions(){
-  const sel=document.querySelector("#registeredPlayerSelect");if(!sel)return;
-  const previous=sel.value;
-  const present=new Set((data.players||[]).filter(p=>p.active!==false).map(p=>p.name.trim().toLocaleLowerCase()));
-  const available=registeredPlayers.filter(p=>!present.has(p.name.trim().toLocaleLowerCase()));
-  sel.innerHTML=`<option value="">Choose registered player (optional)</option>`+available.map(p=>`<option value="${encodeURIComponent(p.name)}">${escapeHtml(p.name)} — ${escapeHtml(p.sourceCompetition)}</option>`).join("");
-  if([...sel.options].some(o=>o.value===previous))sel.value=previous;
-}
-function selectRegisteredPlayer(){
-  const value=document.querySelector("#registeredPlayerSelect")?.value;
-  const p=registeredPlayers.find(p=>encodeURIComponent(p.name)===value);
-  if(!p)return;
-  document.querySelector("#manageNewPlayerName").value=p.name;
-  document.querySelector("#manageNewPlayerNumber").value=p.number||"";
-  document.querySelector("#manageNewPlayerPosition").value=p.position||"";
-}
 function renderTeamManager(){
   const teamSelect=document.querySelector("#managePlayerTeam");
   const playerSelect=document.querySelector("#managePlayerSelect");
@@ -1773,7 +1712,6 @@ function renderTeamManager(){
     ? `<option value="">Select a player</option>${players.map(p=>`<option value="${p.id}">${p.name}${p.captain?" (Captain)":""}</option>`).join("")}`
     : `<option value="">No active players on this team</option>`;
   if(players.some(p=>String(p.id)===String(previousPlayer)))playerSelect.value=previousPlayer;
-  renderRegisteredPlayerOptions();
   const action=actionSelect.value || "add";
   const adding=action==="add";
   const editing=action==="edit";
@@ -1814,7 +1752,6 @@ async function applyPlayerManagement(){
   if(action==="add"){
     const name=document.querySelector("#manageNewPlayerName").value.trim();
     if(!name)return alert("Enter the player's name.");
-    if(data.players.some(p=>p.active!==false&&p.name.trim().toLowerCase()===name.toLowerCase()))return alert("This player is already registered in this competition.");
     data.players.push({id:`P${Date.now()}`,name,teamId,active:true,captain:false,number:document.querySelector("#manageNewPlayerNumber").value,position:document.querySelector("#manageNewPlayerPosition").value.trim(),photo:"",createdAtMs:Date.now()});
     document.querySelector("#manageNewPlayerName").value="";
     document.querySelector("#manageNewPlayerNumber").value="";
@@ -1982,7 +1919,7 @@ function renderFixtureManager(){
   const sel=document.querySelector("#fixtureManageSelect"),home=document.querySelector("#fixtureManageHome"),away=document.querySelector("#fixtureManageAway");
   if(!sel||!home||!away)return;
   const previous=sel.value||"NEW";
-  sel.innerHTML=`<option value="NEW">+ New fixture</option>${sortedFixtures().map(f=>`<option value="${f.id}">${escapeHtml(fixtureAdminLabel(f))}</option>`).join("")}`;
+  sel.innerHTML=`<option value="NEW">+ New fixture</option>${data.fixtures.map(f=>`<option value="${f.id}">${isFinalFixture(f)?"Final":`Week ${f.week}`} • ${teamName(f.home)} vs ${teamName(f.away)}</option>`).join("")}`;
   sel.value=data.fixtures.some(f=>f.id===previous)?previous:"NEW";
   const comp=competitionById(selectedCompetitionId);
   const teamOptions=data.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join("");
@@ -2011,7 +1948,7 @@ async function saveManagedFixture(){
   const isFinal=home==="FINAL1"||away==="FINAL2";
   if(isFinal && !(home==="FINAL1"&&away==="FINAL2"))return alert("For the Final, select 1st Place as home and 2nd Place as away.");
   const payload={week:Number(document.querySelector("#fixtureManageWeek")?.value||1),home,away,date:fromDateInputValue(document.querySelector("#fixtureManageDate")?.value||""),time:fromTimeInputValue(document.querySelector("#fixtureManageTime")?.value||""),venue:document.querySelector("#fixtureManageVenue")?.value.trim()||"",homeScore:null,awayScore:null,status:"scheduled",isFinal};
-  if(existingId&&existingId!=="NEW"){const i=data.fixtures.findIndex(f=>f.id===existingId);if(i>=0){const {homeScore,awayScore,status,...schedule}=payload;data.fixtures[i]={...data.fixtures[i],...schedule};}}
+  if(existingId&&existingId!=="NEW"){const i=data.fixtures.findIndex(f=>f.id===existingId);if(i>=0)data.fixtures[i]={...data.fixtures[i],...payload};}
   else{payload.id=`${isFinal?"FINAL":"M"}-${Date.now()}`;data.fixtures.push(payload);}
   await save();await syncCompetitionDatesFromFixtures();render();flash();
 }
@@ -2025,12 +1962,12 @@ async function deleteManagedFixture(){
 }
 
 function fillSelects(){
-  const openMatches=Array.isArray(data.fixtures)?sortedFixtures():[];
+  const openMatches=Array.isArray(data.fixtures)?data.fixtures:[];
   ["resultMatch","eventMatch","controlMatch","manageEventMatch"].forEach(id=>{
     const el=document.querySelector("#"+id);
     if(!el)return;
     const current=el.value;
-    el.innerHTML=openMatches.length?openMatches.map(f=>`<option value="${f.id}">${escapeHtml(fixtureAdminLabel(f))}</option>`).join(""):`<option value="">No matches available</option>`;
+    el.innerHTML=openMatches.length?openMatches.map(f=>`<option value="${f.id}">${f.id}: ${teamName(f.home)} vs ${teamName(f.away)}</option>`).join(""):`<option value="">No matches available</option>`;
     if([...el.options].some(o=>o.value===current))el.value=current;
   });
   const teamOptions=data.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join("");
@@ -2047,16 +1984,15 @@ document.querySelector("#tabs").addEventListener("click",e=>{
   if(!btn)return;
   if(btn.dataset.tab==="admin"&&!isAdmin){openLogin();return;}
   activateTab(btn.dataset.tab);
-  if(btn.dataset.tab==="admin")loadRegisteredPlayers();
 });
 document.addEventListener("click",e=>{
   const open=e.target.closest("[data-open-tab]");
   if(open){const tab=open.dataset.openTab;if(tab==="admin"&&!isAdmin)return openLogin();activateTab(tab);return;}
   const comp=e.target.closest("[data-competition-id]");
-  if(comp){switchCompetition(comp.dataset.competitionId);renderCompetitionUI();document.querySelector("#competitionOverviewCard")?.scrollIntoView({behavior:"smooth",block:"start"});return;}
+  if(comp){switchCompetition(comp.dataset.competitionId);renderCompetitionUI();return;}
   const sw=e.target.closest("[data-switch-competition]");
   if(sw){switchCompetition(sw.dataset.switchCompetition,{openHome:true});closeCompetitionSwitcher();return;}
-  if(e.target.closest("[data-view-selected-competition]")){document.querySelector("#competitionDetailContent")?.scrollIntoView({behavior:"smooth",block:"start"});return;}
+  if(e.target.closest("[data-view-selected-competition]")){activateTab("home");return;}
 });
 document.querySelector("#competitionSwitcherBtn")?.addEventListener("click",openCompetitionSwitcher);
 document.querySelector("#closeCompetitionSwitcher")?.addEventListener("click",closeCompetitionSwitcher);
@@ -2164,11 +2100,7 @@ document.querySelector("#liveMatchPanel")?.addEventListener("click",e=>{
   document.querySelector("#liveMatchGallery")?.classList.toggle("active",tab==="gallery");
 });
 
-document.addEventListener("click",e=>{
- const team=e.target.closest("[data-open-team]");if(team){e.stopPropagation();activateTab("teams");const target=document.querySelector(`[data-team-card="${team.dataset.openTeam}"]`);target?.scrollIntoView({behavior:"smooth",block:"center"});}
-});
 document.querySelector("#fixtureList").addEventListener("click",e=>{
-  if(e.target.closest("[data-player-profile]"))return;
   const row=e.target.closest("[data-fixture-id]");
   if(!row)return;
   expandedFixtureId=expandedFixtureId===row.dataset.fixtureId?"":row.dataset.fixtureId;
@@ -2218,11 +2150,6 @@ document.addEventListener("click",e=>{
   if(e.target.closest("[data-upcoming-prev]"))moveUpcomingFixture(-1);
   if(e.target.closest("[data-upcoming-next]"))moveUpcomingFixture(1);
 });
-document.querySelector("#registeredPlayerSelect")?.addEventListener("change",selectRegisteredPlayer);
-document.querySelector("#refreshRegisteredPlayers")?.addEventListener("click",()=>loadRegisteredPlayers().catch(err=>alert(err.message)));
-let upcomingTouchX=null;
-document.querySelector("#nextFixture")?.addEventListener("touchstart",e=>{upcomingTouchX=e.changedTouches[0]?.screenX??null;},{passive:true});
-document.querySelector("#nextFixture")?.addEventListener("touchend",e=>{if(upcomingTouchX===null)return;const dx=(e.changedTouches[0]?.screenX??upcomingTouchX)-upcomingTouchX;upcomingTouchX=null;if(Math.abs(dx)>45)moveUpcomingFixture(dx<0?1:-1);},{passive:true});
 document.querySelector("#galleryMatchFilter")?.addEventListener("change",renderGallery);
 document.querySelector("#galleryUploadMatch")?.addEventListener("change",renderAdminGallery);
 document.querySelector("#galleryPhotoUploadBtn")?.addEventListener("click",uploadGalleryPhotos);
@@ -2404,7 +2331,7 @@ document.querySelector("#playerProfileModal")?.addEventListener("click",e=>{
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeLogin();closePlayerProfile();}});
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("sw.js?v=1.2.0").then(reg=>{
+  navigator.serviceWorker.register("sw.js?v=1.1.4").then(reg=>{
     reg.update().catch(()=>{});
     reg.addEventListener("updatefound",()=>{
       const worker=reg.installing;

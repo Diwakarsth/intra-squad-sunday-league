@@ -511,6 +511,14 @@ function renderCompetitionUI(){
   if(catalog)catalog.innerHTML=groups.map(group=>`<div class="competition-group"><div class="competition-group-title">${group}</div>${competitions.filter(c=>(c.group||"Other Competitions")===group).map(c=>`<div class="competition-item ${c.id===selectedCompetitionId?"active":""}" data-competition-id="${c.id}"><div class="competition-icon">${c.icon||"🏆"}</div><div><strong>${c.name}</strong><small>${c.startDate||"TBD"}${c.endDate&&c.endDate!==c.startDate?` – ${c.endDate}`:""} • ${c.format||"Competition"}</small></div><span class="status-chip ${competitionStatus(c)}">${c.id===currentCompetitionId?"Current":competitionStatus(c)}</span></div>`).join("")}</div>`).join("");
   const overview=document.querySelector("#competitionOverviewCard");
   if(overview && current)overview.innerHTML=`<div class="competition-overview-hero"><div><div class="muted">Selected Competition</div><h2>${current.icon||"🏆"} ${current.fullName||current.name}</h2><div class="muted">${current.description||""}</div></div><span class="status-chip ${competitionStatus(current)}">${current.id===currentCompetitionId?"Current":competitionStatus(current)}</span></div><div class="competition-format"><strong>Format: ${current.format||"Competition"}</strong>${current.type==="league_final"?`<div class="qualification-flow"><span>League Stage</span><b>→</b><span>Top 2</span><b>→</b><span>Final</span></div><div class="muted" style="margin-top:8px">Positions 1 and 2 qualify for the Final. Final team names resolve automatically when the league stage is complete.</div>`:""}</div><button class="btn" type="button" data-view-selected-competition style="margin-top:12px">View ${current.name}</button>`;
+  const detail=document.querySelector("#competitionDetailContent");
+  if(detail&&current){
+    const rows=standings();
+    const all=sortedFixtures();
+    const played=all.filter(f=>normalizedStatus(f)==="finished");
+    const future=all.filter(f=>normalizedStatus(f)!=="finished");
+    detail.innerHTML=`<div class="competition-detail-top"><h3>${escapeHtml(current.fullName||current.name)} — Competition Overview</h3><p>${escapeHtml(current.description||"Explore the competition's teams, table and matches.")}</p><div class="competition-detail-stats"><span><strong>${data.teams.length}</strong> Teams</span><span><strong>${all.length}</strong> Fixtures</span><span><strong>${played.length}</strong> Completed</span><span><strong>${future.length}</strong> Remaining</span></div></div><div class="competition-detail-grid"><div class="competition-detail-panel"><h4>Standings</h4>${rows.length?`<div class="competition-mini-table">${rows.map((r,i)=>`<div><span>${i+1}. ${escapeHtml(r.team.name)}</span><strong>${r.pts} pts</strong></div>`).join("")}</div>`:'<p>No standings yet.</p>'}<button class="btn" data-open-tab="standings" type="button">Full Standings</button></div><div class="competition-detail-panel"><h4>Fixtures & Results</h4>${all.length?all.slice(0,8).map(f=>`<div class="competition-fixture-mini"><small>${matchLabel(f)} · Week ${displayWeek(f)} · ${escapeHtml(f.date||"TBA")}</small><div>${escapeHtml(teamName(f.home))} <strong>${hasScore(f)?`${f.homeScore}–${f.awayScore}`:"vs"}</strong> ${escapeHtml(teamName(f.away))}</div></div>`).join(""):'<p>No fixtures scheduled.</p>'}<button class="btn" data-open-tab="fixtures" type="button">All Fixtures</button></div><div class="competition-detail-panel"><h4>Participating Teams</h4>${data.teams.map(t=>`<button type="button" class="competition-team-link" data-open-team="${escapeHtml(t.id)}">${logoHtml(t.id)} ${escapeHtml(t.name)} →</button>`).join("")||'<p>No teams registered.</p>'}<button class="btn" data-open-tab="teams" type="button">Teams & Players</button></div></div>`;
+  }
   const list=document.querySelector("#competitionSwitcherList");
   if(list)list.innerHTML=competitions.map(c=>`<button class="competition-switch-option ${c.id===selectedCompetitionId?"selected":""}" type="button" data-switch-competition="${c.id}"><span>${c.icon||"🏆"}</span><span><strong>${c.parentSeason?`${c.parentSeason} — `:""}${c.name}</strong><small>${c.format||""}</small></span><span class="status-chip ${competitionStatus(c)}">${c.id===currentCompetitionId?"Current":competitionStatus(c)}</span></button>`).join("");
   const adminSelect=document.querySelector("#adminCompetitionSelect");
@@ -779,6 +787,7 @@ function fixtureLineups(f){
   };
 }
 function playerName(id){return data.players.find(p=>p.id===id)?.name || "Unknown player";}
+function playerLink(id){const p=data.players.find(x=>String(x.id)===String(id));return p?`<button type="button" class="player-name-link" data-player-profile="${escapeHtml(String(p.id))}" aria-label="Open ${escapeHtml(p.name)} profile">${escapeHtml(p.name)}</button>`:`<span>${escapeHtml(playerName(id))}</span>`;}
 function playerCaptainForFixture(playerId,teamId){
   const p=data.players.find(x=>x.id===playerId);
   return p?.captain && p?.teamId===teamId;
@@ -790,12 +799,12 @@ function lineupHtml(f,side){
   const ids=fixtureLineups(f)[side];
   const teamId=actualFixtureTeamId(f,side);
   if(!ids.length)return `<div class="muted">Lineup not submitted.</div>`;
-  return `<ul class="lineup-list">${ids.map(id=>`<li>${playerName(id)}${playerCaptainForFixture(id,teamId)?" (C)":""}</li>`).join("")}</ul>`;
+  return `<ul class="lineup-list">${ids.map(id=>`<li>${playerLink(id)}${playerCaptainForFixture(id,teamId)?" (C)":""}</li>`).join("")}</ul>`;
 }
 function substitutionsHtml(f,teamId){
   const subs=substitutionEvents(f.id,teamId);
   if(!subs.length)return `<div class="muted">No substitutions.</div>`;
-  return `<div class="sub-list">${subs.map(e=>`<div class="sub-line"><strong>${Number(e.minute||0)}'</strong> <span class="sub-out">⬇ ${playerName(e.playerOutId)}</span> &nbsp; <span class="sub-in">⬆ ${playerName(e.playerInId)}</span></div>`).join("")}</div>`;
+  return `<div class="sub-list">${subs.map(e=>`<div class="sub-line"><strong>${Number(e.minute||0)}'</strong> <span class="sub-out">⬇ ${playerLink(e.playerOutId)}</span> &nbsp; <span class="sub-in">⬆ ${playerLink(e.playerInId)}</span></div>`).join("")}</div>`;
 }
 function fixtureDetailsHtml(f){
   const finished=normalizedStatus(f)==="finished" && hasScore(f);
@@ -1067,7 +1076,7 @@ function displayWeek(f){
 function matchLabel(f){const index=sortedFixtures().findIndex(x=>String(x.id)===String(f?.id));return `Match ${index+1}`;}
 function fixtureAdminLabel(f){return `${matchLabel(f)} • ${isFinalFixture(f)?"Final":`Week ${displayWeek(f)}`} • ${f.date||"Date TBA"}${f.time?` ${f.time}`:""} • ${teamName(f.home)} vs ${teamName(f.away)}`;}
 function potmForFixture(f){return (data.events||[]).find(e=>e.matchId===f.id&&e.type==="Player of the Match");}
-function compactPotm(f){const e=potmForFixture(f);if(!e)return "";const p=data.players.find(p=>String(p.id)===String(e.playerId));return `<span class="compact-potm">🏆 POTM: <strong>${escapeHtml(p?.name||"Awarded player")}</strong></span>`;}
+function compactPotm(f){const e=potmForFixture(f);if(!e)return "";const p=data.players.find(p=>String(p.id)===String(e.playerId));return `<span class="compact-potm">🏆 POTM: ${p?playerLink(p.id):"Awarded player"}</span>`;}
 let upcomingFixtureSlideIndex=0;
 let upcomingFixtureTimer=null;
 function renderUpcomingFixtureSlide(){
@@ -1129,7 +1138,7 @@ function render(){
         <div class="latest-result-meta">${matchLabel(f)} • Week ${displayWeek(f)}${f.date?` • ${f.date}`:""}${f.time?` • ${f.time}`:""}</div>
         <div class="result-with-scorers">
           <div class="result-team result-home"><strong>${teamName(f.home)}</strong>${teamScorersHtml(f,f.home,"left")}</div>
-          <div class="result-center"><div class="result-score">${Number(f.homeScore)}–${Number(f.awayScore)}</div><span class="badge">FT</span>${compactPotm(f)}</div>
+          <div class="result-center"><div class="result-score">${Number(f.homeScore)}–${Number(f.awayScore)}</div><span class="badge">FT</span></div>
           <div class="result-team result-away"><strong>${teamName(f.away)}</strong>${teamScorersHtml(f,f.away,"right")}</div>
         </div>
       </div>`).join("")}</div>`:
@@ -1167,7 +1176,7 @@ function render(){
           : "🏆 Final: 1st Place vs 2nd Place • teams fill automatically after league completion"}</div>`
       : "";
     return `<div class="match ${canOpen?"fixture-clickable":""}" ${canOpen?`data-fixture-id="${f.id}"`:""}><div>${logoHtml(f.home)}<strong>${teamName(f.home)}</strong><div class="muted">Week ${displayWeek(f)}</div></div>
-      <div class="score"><small class="match-number">${matchLabel(f)}</small>${matchHasScore?`${Number(f.homeScore)}–${Number(f.awayScore)}`:"VS"}<div class="badge">${label}</div>${status==="finished"?compactPotm(f):""}${canOpen?`<div class="fixture-details-hint">${expandedFixtureId===f.id?"Hide":"View"} match details</div>`:""}</div>
+      <div class="score"><small class="match-number">${matchLabel(f)}</small>${matchHasScore?`${Number(f.homeScore)}–${Number(f.awayScore)}`:"VS"}<div class="badge">${label}</div>${canOpen?`<div class="fixture-details-hint">${expandedFixtureId===f.id?"Hide":"View"} match details</div>`:""}</div>
       <div class="team-right"><strong>${teamName(f.away)}</strong>${logoHtml(f.away)}<div class="muted">${f.date||""}${f.time?` • ${f.time}`:""}${f.venue?`<br>${f.venue}`:""}${finalAutoNote}</div></div>
       ${expandedFixtureId===f.id?fixtureDetailsHtml(f):""}</div>`;
   }).join("");
@@ -1393,7 +1402,7 @@ function teamScorersHtml(f, teamId, align="left"){
   if(!goals.length)return `<div class="team-scorers-empty">No goals</div>`;
   return `<div class="team-scorers ${align}">${goals.map(e=>{
     const p=data.players.find(x=>x.id===e.playerId);
-    return `<div class="team-scorer-line"><span>${p?.name||"Unknown player"}${e.type==="Own Goal"?` <span class="og-tag">OG</span>`:""} <strong>${Number(e.minute||0)}'</strong></span></div>`;
+    return `<div class="team-scorer-line"><span>${playerLink(e.playerId)}${e.type==="Own Goal"?` <span class="og-tag">OG</span>`:""} <strong>${Number(e.minute||0)}'</strong></span></div>`;
   }).join("")}</div>`;
 }
 
@@ -1408,7 +1417,7 @@ function teamCardsHtml(f,teamId){
   return `<div class="team-card-events">${cards.map(e=>{
     const p=data.players.find(x=>x.id===e.playerId);
     const cls=e.type==="Red Card"?"red-card-detail":"yellow-card-detail";
-    return `<div class="team-card-line"><span class="${cls}"></span><span>${p?.name||"Unknown player"} <strong>${Number(e.minute||0)}'</strong></span></div>`;
+    return `<div class="team-card-line"><span class="${cls}"></span><span>${playerLink(e.playerId)} <strong>${Number(e.minute||0)}'</strong></span></div>`;
   }).join("")}</div>`;
 }
 function completedTeamMatchDetailsHtml(f,teamId,align="left"){
@@ -1438,7 +1447,7 @@ function renderLiveMatch(){
     </div>`:`<div class="muted">No goals yet.</div>`;
   document.querySelector("#liveTimeline").innerHTML=timeline.length?timeline.map(e=>{
     const p=data.players.find(x=>x.id===e.playerId);
-    if(e.type==="Substitution")return `<div class="timeline-item"><strong>${e.minute||0}'</strong><span>🔁 Substitution — <span class="sub-out">⬇ ${playerName(e.playerOutId)}</span> / <span class="sub-in">⬆ ${playerName(e.playerInId)}</span></span></div>`;
+    if(e.type==="Substitution")return `<div class="timeline-item"><strong>${e.minute||0}'</strong><span>🔁 Substitution — <span class="sub-out">⬇ ${playerLink(e.playerOutId)}</span> / <span class="sub-in">⬆ ${playerLink(e.playerInId)}</span></span></div>`;
     return `<div class="timeline-item"><strong>${e.minute||0}'</strong><span>${eventIcon(e.type)} ${e.type}${p?` — ${p.name}${e.type==="Own Goal"?` <span class="og-tag">OG</span>`:""}`:""}</span></div>`;
   }).join(""):`<div class="muted">Live match events will appear here.</div>`;
   const liveLineups=document.querySelector("#liveLineupsContent");
@@ -1564,7 +1573,7 @@ function managedEventMatchId(){
   return el?.value || data.fixtures?.[0]?.id || "";
 }
 function eventDisplayText(e){
-  if(e.type==="Substitution")return `${Number(e.minute||0)}' • 🔁 Substitution • ${playerName(e.playerOutId)} → ${playerName(e.playerInId)}`;
+  if(e.type==="Substitution")return `${Number(e.minute||0)}' • 🔁 Substitution • ${playerLink(e.playerOutId)} → ${playerLink(e.playerInId)}`;
   const p=data.players.find(x=>x.id===e.playerId);
   return `${Number(e.minute||0)}' • ${eventIcon(e.type)} ${e.type} • ${p?.name||"Unknown player"}`;
 }
@@ -1646,8 +1655,8 @@ function renderEventManager(){
   list.innerHTML=events.length?events.map(e=>{
     const p=data.players.find(x=>x.id===e.playerId);
     const desc=e.type==="Substitution"
-      ? `<span class="sub-out">⬇ ${playerName(e.playerOutId)}</span> / <span class="sub-in">⬆ ${playerName(e.playerInId)}</span> • ${teamName(e.teamId)}`
-      : `${p?.name||"Unknown player"}${e.type==="Own Goal"?` <span class="og-tag">OG</span>`:""} • ${teamName(e.teamId||p?.teamId)}`;
+      ? `<span class="sub-out">⬇ ${playerLink(e.playerOutId)}</span> / <span class="sub-in">⬆ ${playerLink(e.playerInId)}</span> • ${teamName(e.teamId)}`
+      : `${playerLink(e.playerId)}${e.type==="Own Goal"?` <span class="og-tag">OG</span>`:""} • ${teamName(e.teamId||p?.teamId)}`;
     return `<div class="managed-event">
       <div class="managed-event-minute">${Number(e.minute||0)}'</div>
       <div><div class="managed-event-type">${eventIcon(e.type)} ${e.type}</div><div class="muted">${desc}</div></div>
@@ -2044,10 +2053,10 @@ document.addEventListener("click",e=>{
   const open=e.target.closest("[data-open-tab]");
   if(open){const tab=open.dataset.openTab;if(tab==="admin"&&!isAdmin)return openLogin();activateTab(tab);return;}
   const comp=e.target.closest("[data-competition-id]");
-  if(comp){switchCompetition(comp.dataset.competitionId);renderCompetitionUI();return;}
+  if(comp){switchCompetition(comp.dataset.competitionId);renderCompetitionUI();document.querySelector("#competitionOverviewCard")?.scrollIntoView({behavior:"smooth",block:"start"});return;}
   const sw=e.target.closest("[data-switch-competition]");
   if(sw){switchCompetition(sw.dataset.switchCompetition,{openHome:true});closeCompetitionSwitcher();return;}
-  if(e.target.closest("[data-view-selected-competition]")){activateTab("home");return;}
+  if(e.target.closest("[data-view-selected-competition]")){document.querySelector("#competitionDetailContent")?.scrollIntoView({behavior:"smooth",block:"start"});return;}
 });
 document.querySelector("#competitionSwitcherBtn")?.addEventListener("click",openCompetitionSwitcher);
 document.querySelector("#closeCompetitionSwitcher")?.addEventListener("click",closeCompetitionSwitcher);
@@ -2159,6 +2168,7 @@ document.addEventListener("click",e=>{
  const team=e.target.closest("[data-open-team]");if(team){e.stopPropagation();activateTab("teams");const target=document.querySelector(`[data-team-card="${team.dataset.openTeam}"]`);target?.scrollIntoView({behavior:"smooth",block:"center"});}
 });
 document.querySelector("#fixtureList").addEventListener("click",e=>{
+  if(e.target.closest("[data-player-profile]"))return;
   const row=e.target.closest("[data-fixture-id]");
   if(!row)return;
   expandedFixtureId=expandedFixtureId===row.dataset.fixtureId?"":row.dataset.fixtureId;

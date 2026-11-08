@@ -79,3 +79,9 @@ Note: This is a non-destructive frontend update. Existing Firestore data is not 
 - League Control and Match Events dropdowns show consistent Match #, Week #, date/time and teams, sorted by kickoff date/time.
 - Weeks displayed based on distinct chronological match dates; underlying historical week fields and match IDs are preserved.
 - Editing a fixture schedule no longer resets existing scores or match status.
+
+## v1.3
+- Player profiles clickable in completed match detail goals, cards, lineups, substitutions, POTM.
+- POTM removed from collapsed fixture cards and latest-result summary; shown in expanded match details.
+- Competition catalog navigates to selected competition overview with standings, fixtures and teams.
+- Navy-and-white visual refresh.

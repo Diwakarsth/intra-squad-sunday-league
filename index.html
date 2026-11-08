@@ -570,6 +570,31 @@ main section .card h2,main section .card h3,main section .card h4{color:#0b294d}
 .competition-team-link{display:flex;align-items:center;gap:10px;width:100%;padding:9px 5px;background:none;border:0;border-bottom:1px solid #e1e9f3;text-align:left;color:#1764b4;font-weight:700;cursor:pointer}.competition-team-link .mini-team-logo{width:28px;height:28px;object-fit:contain}
 .competition-detail-panel>.btn{margin-top:14px}
 @media(max-width:850px){.competition-detail-grid{grid-template-columns:1fr}.competition-detail-top{padding:17px}.competition-detail-stats span{flex:1 1 40%}}
+
+/* v1.3 approved high-contrast light theme correction */
+:root{--bg:#f2f6fb;--card:#fff;--text:#142942;--muted:#52667f;--sky:#e9f2fd;--border:#cbd8e7;--navy:#09294e;--blue:#1764b4}
+body{background:#f2f6fb!important;color:#142942!important}
+main section .card,main section .match,main section .competition-item,main section .competition-detail-panel,main section .quick-link{background:#fff!important;color:#142942!important;border-color:#cbd8e7!important}
+main section .card h2,main section .card h3,main section .card h4,main section .match h4{color:#09294e!important}
+main section .muted,main section .fixture-details-hint,main section .team-scorers-empty,main section .quick-link span span{color:#52667f!important}
+main section table,main section td,main section th,main section .player-row,main section .scorer-row,main section .team-scorers{color:#142942!important}
+main section th{color:#405a78!important;background:#edf3fa}
+main section .fixture-details,main section .team-head,main section .squad,main section .team-sheet-box,main section .timeline,main section .live-scorers,main section .team-manager-player{background:#f4f8fd!important;color:#142942!important;border-color:#d0ddec!important}
+main section .badge{background:#e8f2ff!important;color:#124c8b!important}
+main section label{color:#344e6c!important}
+main section input,main section select,main section textarea{background:#fff!important;color:#142942!important;border:1px solid #a9bfd7!important}
+main section .quick-link strong,main section .quick-link .qicon{color:#0b3766!important}
+main section .btn{color:#fff!important}
+main section .btn.secondary{background:#245b91!important}
+main section .player-name-link,main section .competition-team-link,main section .text-link{color:#145dab!important}
+main section .fixture-clickable:hover{background:#eaf3ff!important}
+main section .live-panel,main section .competition-detail-top{color:#fff!important}
+main section .live-panel h2,main section .live-panel h3,main section .live-panel .live-score,main section .live-panel .live-team,main section .competition-detail-top h3{color:#fff!important}
+.instagram-follow{display:flex;flex-direction:column;gap:9px;justify-content:center;align-items:center;margin:22px auto 12px;padding:19px;background:#e8f0f9;border-radius:14px;color:#09294e!important;max-width:100%;font-size:19px}
+.instagram-follow a{display:inline-flex!important;align-items:center;justify-content:center;width:54px;height:54px;background:linear-gradient(35deg,#ffba32,#e1306c,#833ab4);color:#fff!important;border-radius:14px}
+#gallery .instagram-follow{margin-top:20px}
+@media(max-width:700px){.instagram-follow{margin:16px 0 12px;padding:16px}}
+
 </style>
 </head>
 <body>
@@ -668,6 +693,7 @@ main section .card h2,main section .card h3,main section .card h4{color:#0b294d}
         <button class="quick-link" type="button" data-open-tab="top-scorers"><span class="qicon">📈</span><span><strong>Stats</strong><span>Goals, assists, cards & POTM</span></span></button>
         <button class="quick-link" type="button" data-open-tab="gallery"><span class="qicon">▣</span><span><strong>Gallery</strong><span>Competition photos & videos</span></span></button>
       </div>
+      <div class="instagram-follow"><strong>Follow Us</strong><a href="https://www.instagram.com/hamro_sundayleague/" target="_blank" rel="noopener noreferrer" aria-label="Visit our Instagram profile" title="Instagram"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="18" cy="6" r="1" fill="currentColor" stroke="none"/></svg></a></div>
     </section>
 
     <section id="competitions">
@@ -755,6 +781,7 @@ main section .card h2,main section .card h3,main section .card h4{color:#0b294d}
           <label>Match<select id="galleryMatchFilter"><option value="">All matches</option></select></label>
         </div>
         <div id="galleryContent"></div>
+        <div class="instagram-follow"><strong>Follow Us</strong><a href="https://www.instagram.com/hamro_sundayleague/" target="_blank" rel="noopener noreferrer" aria-label="Visit our Instagram profile" title="Instagram"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="18" cy="6" r="1" fill="currentColor" stroke="none"/></svg></a></div>
       </div>
 
       <div id="galleryAdminPanel" class="card gallery-admin-panel admin-hidden">
@@ -999,7 +1026,6 @@ main section .card h2,main section .card h3,main section .card h4{color:#0b294d}
     </section>
   </main>
 
-  <div class="instagram-follow"><span>Follow the league</span><a href="https://www.instagram.com/hamro_sundayleague/" target="_blank" rel="noopener noreferrer" aria-label="Visit our Instagram profile" title="Instagram"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="18" cy="6" r="1" fill="currentColor" stroke="none"/></svg></a></div>
   <footer>© 2026 Intra Squad Sunday League • Passion. Community. Football. • v1.3</footer>
 </div>
 

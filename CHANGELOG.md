@@ -85,3 +85,9 @@ Note: This is a non-destructive frontend update. Existing Firestore data is not 
 - POTM removed from collapsed fixture cards and latest-result summary; shown in expanded match details.
 - Competition catalog navigates to selected competition overview with standings, fixtures and teams.
 - Navy-and-white visual refresh.
+
+
+## v1.3 approved visual update
+- High contrast navy and white homepage, reordered dashboard, gallery preview, Instagram after gallery, competition shortcut row, league banner.
+- Competition shortcut buttons open the competitions catalog for accurate selection.
+- Dynamic league data remains loaded from Firebase.
